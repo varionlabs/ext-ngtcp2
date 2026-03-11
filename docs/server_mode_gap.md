@@ -5,9 +5,10 @@ lists the minimum tasks required for native server mode.
 
 ## Current state
 
-- Extension API is client-only.
-- `Connection` initializes native state via `ngtcp2_conn_client_new`.
-- Integration currently uses `/usr/sbin/gtlsserver` as an external server fixture.
+- Stable API is client-centric (`Connection` via `ngtcp2_conn_client_new`).
+- Experimental server API exists as `ServerConnection::accept(...)`.
+- Native server loopback integration (`tests/120`-`123`) is available.
+- `/usr/sbin/gtlsserver` fixture remains available for fallback validation.
 
 ## sample_server.c mapping
 
@@ -55,14 +56,12 @@ Either option should keep these methods symmetric:
 - `onTimeout(): void`
 - `close(int $errorCode = 0, string $reason = ''): void`
 
-## Implementation tasks
+## Remaining implementation tasks
 
-1. Add server-side native init function (`ngtcp2_conn_server_new` path).
-2. Add server transport params setup including stateless reset token.
-3. Add initial-packet parse/accept helper to build path + CID.
-4. Split client/server callback init if role-specific behavior diverges.
-5. Add PHPT for server construction and event progression.
-6. Add loopback integration PHPT with in-process UDP sockets (no external gtlsserver).
+1. multi-connection dispatch keyed by DCID (current MVP is single connection).
+2. optional Retry/address-validation policy controls.
+3. server-mode capability boundaries and stability guarantees in public docs.
+4. CI strategy for UDP-required integration tests.
 
 ## Risks
 

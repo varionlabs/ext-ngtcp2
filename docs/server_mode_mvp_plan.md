@@ -1,7 +1,7 @@
 # Server Mode MVP Plan
 
 This is an implementation-oriented checklist for introducing native server mode
-after the current client-only baseline.
+on top of the current stable client baseline.
 
 ## Goal
 
@@ -80,8 +80,10 @@ Implemented:
 - `ServerConnection::accept(...)` with `ngtcp2_conn_server_new` path
 - handshake event progression and stream RX/TX path
 - server close propagation integration (`tests/123`)
-- `accept` stage-based error prefixes (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:read_initial]`)
+- `accept` stage-based error prefixes (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:new]`, `[ngtcp2:read_initial]`)
+- deterministic test hook for `[ngtcp2:new]` (`NGTCP2_TEST_FORCE_SERVER_NEW_FAILURE=1`, `tests/025`)
 
 Remaining:
 
 - Keep integration execution guidance in sync for UDP-restricted runners
+- Transition from MVP to hardening scope (multi-connection/DCID map/Retry policy)

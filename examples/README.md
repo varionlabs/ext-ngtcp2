@@ -1,9 +1,9 @@
 # Examples
 
-## Server wrapper (current workaround)
+## Server wrapper (stable path)
 
-The extension is currently client-only, so native QUIC server mode is not exposed yet.
-Use `server_minimal.php` to run `/usr/sbin/gtlsserver` as a local test server.
+The stable API surface is client-focused. For conservative local testing, you can
+use `server_minimal.php` to run `/usr/sbin/gtlsserver` as an external QUIC server.
 
 ```sh
 php examples/server_minimal.php --host=127.0.0.1 --port=4433

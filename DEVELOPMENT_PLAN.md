@@ -5,12 +5,16 @@
 本計画は `SPEC.md` に基づき、`ngtcp2` を Sans-I/O QUIC engine として PHP ユーザーランドへ公開する最小実装 (v0) を定義する。
 
 v0 の実装範囲:
-- client only
+- client API を正式サポート (stable)
 - GnuTLS backend only
 - bidirectional stream only
 - `Connection::recv() / onTimeout() / getNextTimeout() / pollEvents() / flush() / openStream() / close()`
 - `Stream::read() / write() / end()`
 - イベント: `HandshakeCompleted`, `ConnectionClosed`, `StreamReadable`, `StreamWritable`, `StreamClosed`, `StreamReset`
+
+補足 (2026-03-11 時点):
+- `Varion\Ngtcp2\ServerConnection` は experimental 実装として追加済み。
+- server path は MVP/検証用途であり、v0 の「正式サポート範囲」には含めない。
 
 v0 で後回し:
 - server mode
@@ -244,7 +248,8 @@ mock 方針:
 - callback 直 PHP 呼び出しが存在しない。
 - UDP socket/event loop を拡張が所有していない。
 - PHPT + integration の最低スイートが CI で再現可能。
-- 既知制約 (server mode 未対応等) がドキュメント化されている。
+- 既知制約 (server mode は experimental で非安定等) がドキュメント化されている。
+- experimental server path の位置づけ (サポート外/保証外) が明記されている。
 
 ## 11. 進捗メモ (2026-03-11)
 
@@ -303,17 +308,19 @@ mock 方針:
   close/draining 中の `recv/flush/onTimeout` 例外を警告ログ化し、ループ継続性を改善。
 
 未着手/残課題:
-- server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
+- server mode hardening (multi-connection/DCID map/Retry policy 等)
+- DATAGRAM拡張 / path migration など post-v0 項目の整理。
 
 ## 12. サーバースクリプト作成計画
 
 目的:
-- 現在の client-only 制約を維持したまま、実運用に近い検証を行える最小 QUIC サーバー起動スクリプトを `examples/` に追加する。
+- stable client API を維持しつつ、実運用に近い検証を行える最小 QUIC サーバー起動スクリプトを `examples/` に追加する。
 - 将来の native server mode 実装時に `sample_server.c` の接着点を再利用できるよう、移行前提の構成にする。
 
 前提:
-- 現時点の拡張 API は `Connection` が client 側初期化のみを提供しており、拡張単体で QUIC server accept loop は実装できない。
-- そのため第1段階は `/usr/sbin/gtlsserver` を使ったラッパースクリプトとして提供する。
+- 正式サポート API は client 側 (`Connection`) のみ。
+- experimental server API として `ServerConnection::accept(...)` を提供済み。
+- 安定運用向けには、引き続き `/usr/sbin/gtlsserver` ラッパーも選択肢として維持する。
 
 ### Phase S1: 外部サーバー起動ラッパー例 (短期)
 
