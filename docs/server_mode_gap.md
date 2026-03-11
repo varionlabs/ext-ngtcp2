@@ -11,16 +11,17 @@ lists the minimum tasks required for native server mode.
 
 ## sample_server.c mapping
 
-Server-side primitives in `sample_server.c` that are not implemented in extension code yet:
+Server-side primitives in `sample_server.c` that are not fully aligned in extension code yet:
 
-- `ngtcp2_conn_server_new` initialization path
-- server transport parameter setup (`stateless_reset_token_present`, token bytes)
-- server accept-time CID/path initialization
-- server receive loop assumptions (Initial packet handling before connection object exists)
-- server close path from server context (`ngtcp2_conn_write_connection_close`)
+- retry/address-validation policy handling (not in MVP)
+- accept-time policy knobs beyond minimal CID/path setup
+- multi-connection dispatch from Initial/DCID map (MVP is single connection)
 
 Already aligned or partially reusable:
 
+- `ngtcp2_conn_server_new` initialization path via `ServerConnection::accept(...)`
+- server transport params baseline including stateless reset token generation
+- accept-time CID/path initialization from first Initial packet metadata
 - callback patterns (`handshake_completed`, `stream_open`, `stream_close`, `recv_stream_data`)
 - stream write path (`ngtcp2_conn_writev_stream`)
 - timeout handling (`ngtcp2_conn_get_expiry`, `ngtcp2_conn_handle_expiry`)

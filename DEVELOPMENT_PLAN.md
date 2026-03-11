@@ -283,6 +283,9 @@ mock 方針:
   native server が返信し、client が受信できる往復経路を検証。
 - `tests/021_server_close_event.phpt` を追加し、`ServerConnection::close()` の状態遷移と
   `ConnectionClosed` イベント発火を検証。
+- `ServerConnection::accept()` の server transport params で
+  `stateless_reset_token_present` と token 生成を明示関数化し、
+  `sample_server.c` との差分を縮小。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。

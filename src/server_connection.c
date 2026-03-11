@@ -37,6 +37,19 @@ static int php_quic_fill_random(uint8_t *dest, size_t destlen) {
   return SUCCESS;
 }
 
+static int php_quic_server_set_stateless_reset_token(
+  ngtcp2_transport_params *params) {
+  params->stateless_reset_token_present = 1;
+
+  if (php_quic_fill_random(params->stateless_reset_token,
+                           NGTCP2_STATELESS_RESET_TOKENLEN) != SUCCESS) {
+    params->stateless_reset_token_present = 0;
+    return FAILURE;
+  }
+
+  return SUCCESS;
+}
+
 static int php_quic_default_local_addr(int family, struct sockaddr_storage *storage,
                                        socklen_t *addrlen) {
   memset(storage, 0, sizeof(*storage));
@@ -299,9 +312,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   params.initial_max_streams_uni = 16;
   params.max_idle_timeout = 30 * NGTCP2_SECONDS;
   params.active_connection_id_limit = 7;
-  params.stateless_reset_token_present = 1;
-  if (php_quic_fill_random(params.stateless_reset_token,
-                           sizeof(params.stateless_reset_token)) != SUCCESS) {
+  if (php_quic_server_set_stateless_reset_token(&params) != SUCCESS) {
     zend_string_release(cert_file);
     zend_string_release(key_file);
     zend_string_release(alpn);
