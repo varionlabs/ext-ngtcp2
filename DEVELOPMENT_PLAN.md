@@ -275,6 +275,14 @@ mock 方針:
   client/server handshake 成立を検証。
 - `tests/121_integration_native_server_stream_readable.phpt` を追加し、native server 側で
   client stream 書き込みの `StreamReadable` イベントを検証。
+- `Connection::getStream(int $streamId): ?Stream` を追加し、remote-open stream の取得を可能化。
+- `tests/031_connection_get_stream.phpt` を追加し、既存/未知 stream ID の取得挙動を検証。
+- `tests/121_integration_native_server_stream_readable.phpt` を拡張し、server 側で
+  `StreamReadable` 後に payload を `Stream::read()` で取得できることを検証。
+- `tests/122_integration_native_server_stream_roundtrip.phpt` を追加し、client 発ストリームに対して
+  native server が返信し、client が受信できる往復経路を検証。
+- `tests/021_server_close_event.phpt` を追加し、`ServerConnection::close()` の状態遷移と
+  `ConnectionClosed` イベント発火を検証。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。

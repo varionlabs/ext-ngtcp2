@@ -355,6 +355,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_connection_open_stream, 0, 0,
                                        Varion\\Ngtcp2\\Stream, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_connection_get_stream, 0, 1,
+                                       Varion\\Ngtcp2\\Stream, 1)
+  ZEND_ARG_TYPE_INFO(0, streamId, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_connection_close, 0, 0, 0)
   ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, errorCode, IS_LONG, 0, "0")
   ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, reason, IS_STRING, 0, "\"\"")
@@ -787,6 +792,24 @@ PHP_METHOD(Ngtcp2_Connection, openStream) {
   php_quic_stream_create(return_value, ZEND_THIS, stream_id);
 }
 
+PHP_METHOD(Ngtcp2_Connection, getStream) {
+  php_quic_connection *connection;
+  php_quic_stream_entry *entry;
+  zend_long stream_id;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(stream_id)
+  ZEND_PARSE_PARAMETERS_END();
+
+  connection = Z_QUIC_CONNECTION_P(ZEND_THIS);
+  entry = php_quic_connection_get_stream_entry(connection, (int64_t)stream_id);
+  if (entry == NULL) {
+    RETURN_NULL();
+  }
+
+  php_quic_stream_create(return_value, ZEND_THIS, (int64_t)stream_id);
+}
+
 PHP_METHOD(Ngtcp2_Connection, close) {
   php_quic_connection *connection;
   zend_long error_code = 0;
@@ -857,6 +880,7 @@ static const zend_function_entry php_quic_connection_methods[] = {
   PHP_ME(Ngtcp2_Connection, pollEvents, arginfo_connection_poll_events, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, flush, arginfo_connection_flush, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, openStream, arginfo_connection_open_stream, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, getStream, arginfo_connection_get_stream, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, close, arginfo_connection_close, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, isEstablished, arginfo_connection_is_established, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, isClosed, arginfo_connection_is_closed, ZEND_ACC_PUBLIC)

@@ -1,5 +1,5 @@
 --TEST--
-integration native ServerConnection receives StreamReadable from client stream write
+integration native ServerConnection can reply on client-initiated stream
 --SKIPIF--
 <?php
 if (!extension_loaded('ngtcp2')) {
@@ -92,9 +92,10 @@ try {
 
     $clientHs = false;
     $serverHs = false;
-    $sentStream = false;
-    $serverReadable = false;
-    $serverPayload = '';
+    $sentRequest = false;
+    $serverSentReply = false;
+    $clientReceivedReply = false;
+    $clientPayload = '';
     $deadline = microtime(true) + 10.0;
 
     while (microtime(true) < $deadline && !$clientConn->isClosed()) {
@@ -139,6 +140,15 @@ try {
             if ($event instanceof HandshakeCompleted) {
                 $clientHs = true;
             }
+            if ($event instanceof StreamReadable) {
+                $stream = $clientConn->getStream($event->getStreamId());
+                if ($stream !== null) {
+                    $clientPayload .= $stream->read(65535);
+                }
+                if (str_contains($clientPayload, "pong-from-server\n")) {
+                    $clientReceivedReply = true;
+                }
+            }
         }
 
         if ($serverConn instanceof ServerConnection) {
@@ -146,32 +156,35 @@ try {
                 if ($event instanceof HandshakeCompleted) {
                     $serverHs = true;
                 }
-                if ($event instanceof StreamReadable) {
-                    $readStream = $serverConn->getStream($event->getStreamId());
-                    if ($readStream !== null) {
-                        $serverPayload .= $readStream->read(65535);
+                if ($event instanceof StreamReadable && !$serverSentReply) {
+                    $stream = $serverConn->getStream($event->getStreamId());
+                    if ($stream !== null) {
+                        $request = $stream->read(65535);
+                        if (str_contains($request, "ping-from-client\n")) {
+                            $stream->write("pong-from-server\n");
+                            $serverSentReply = true;
+                        }
                     }
-                    $serverReadable = true;
                 }
             }
         }
 
-        if ($clientHs && $serverHs && !$sentStream) {
+        if ($clientHs && $serverHs && !$sentRequest) {
             $stream = $clientConn->openStream();
             $stream->write("ping-from-client\n");
-            $sentStream = true;
+            $sentRequest = true;
         }
 
-        if ($serverReadable && str_contains($serverPayload, "ping-from-client\n")) {
+        if ($clientReceivedReply) {
             break;
         }
     }
 
     var_dump($clientHs);
     var_dump($serverHs);
-    var_dump($sentStream);
-    var_dump($serverReadable);
-    var_dump($serverPayload === "ping-from-client\n");
+    var_dump($sentRequest);
+    var_dump($serverSentReply);
+    var_dump($clientReceivedReply);
 } finally {
     if (is_resource($clientSock)) {
         fclose($clientSock);
