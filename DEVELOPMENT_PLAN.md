@@ -255,7 +255,8 @@ mock 方針:
 - `Stream::reset()` を `ngtcp2_conn_shutdown_stream()` に接続し、transport state と API state の乖離を解消。
 - `close($errorCode, $reason)` で reason phrase を ngtcp2 の close error (`ngtcp2_ccerr`) に反映。
 - PHPT 8件が全件 PASS。
+- `gtlsserver` を使った integration handshake PHPT (`tests/100_integration_handshake.phpt`) を追加。
+  UDP bind 制約環境では skip し、実行可能環境で handshake 完了を検証できる構成にした。
 
 未着手/残課題:
-- integration test (loopback QUIC peer 実通信) の追加。
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
