@@ -264,6 +264,8 @@ mock 方針:
 - `sample_server.c` と現実装の差分整理として `docs/server_mode_gap.md` を追加。
 - native server mode の実装タスク分解として `docs/server_mode_mvp_plan.md` を追加。
 - QUIC DATAGRAM extension の実装前メモとして `docs/datagram_extension_plan.md` を追加。
+- path migration の実装前メモとして `docs/path_migration_plan.md` を追加。
+- key update event / debug stats / nghttp3 統合などの分解メモとして `docs/post_v0_backlog.md` を追加。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
