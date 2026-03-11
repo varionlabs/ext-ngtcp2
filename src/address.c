@@ -88,7 +88,7 @@ static void php_quic_address_free_object(zend_object *object) {
 int php_ngtcp2_address_init(INIT_FUNC_ARGS) {
   zend_class_entry ce;
 
-  INIT_NS_CLASS_ENTRY(ce, "Ngtcp2", "Address", php_quic_address_methods);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "Address", php_quic_address_methods);
   php_quic_address_ce = zend_register_internal_class(&ce);
   php_quic_address_ce->create_object = php_quic_address_create_object;
 

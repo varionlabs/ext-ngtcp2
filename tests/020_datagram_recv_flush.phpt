@@ -9,10 +9,10 @@ if (!extension_loaded('ngtcp2')) {
 --FILE--
 <?php
 
-use Ngtcp2\Address;
-use Ngtcp2\Connection;
-use Ngtcp2\Datagram;
-use Ngtcp2\HandshakeCompleted;
+use Varion\Ngtcp2\Address;
+use Varion\Ngtcp2\Connection;
+use Varion\Ngtcp2\Datagram;
+use Varion\Ngtcp2\HandshakeCompleted;
 
 $remote = new Address('127.0.0.1', 4433);
 $conn = new Connection($remote);

@@ -99,13 +99,13 @@ php_quic_stream_entry *php_quic_connection_open_stream_entry(
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_connection_construct, 0, 0, 1)
-  ZEND_ARG_OBJ_INFO(0, remoteAddress, Ngtcp2\\Address, 0)
-  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Ngtcp2\\Address, 1, "null")
+  ZEND_ARG_OBJ_INFO(0, remoteAddress, Varion\\Ngtcp2\\Address, 0)
+  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
   ZEND_ARG_ARRAY_INFO(0, options, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_connection_recv, 0, 0, 1)
-  ZEND_ARG_OBJ_INFO(0, datagram, Ngtcp2\\Datagram, 0)
+  ZEND_ARG_OBJ_INFO(0, datagram, Varion\\Ngtcp2\\Datagram, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_connection_no_args, 0, 0, 0)
@@ -122,7 +122,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_flush, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_connection_open_stream, 0, 0, Ngtcp2\\Stream,
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_connection_open_stream, 0, 0, Varion\\Ngtcp2\\Stream,
                                        0)
 ZEND_END_ARG_INFO()
 
@@ -349,7 +349,7 @@ static void php_quic_connection_free_object(zend_object *object) {
 int php_ngtcp2_connection_init(INIT_FUNC_ARGS) {
   zend_class_entry ce;
 
-  INIT_NS_CLASS_ENTRY(ce, "Ngtcp2", "Connection", php_quic_connection_methods);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "Connection", php_quic_connection_methods);
   php_quic_connection_ce = zend_register_internal_class(&ce);
   php_quic_connection_ce->create_object = php_quic_connection_create_object;
 

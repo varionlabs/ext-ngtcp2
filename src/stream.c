@@ -58,7 +58,7 @@ ZEND_END_ARG_INFO()
 
 PHP_METHOD(Ngtcp2_Stream, __construct) {
   zend_throw_exception(zend_ce_exception,
-                       "Ngtcp2\\Stream cannot be constructed directly", 0);
+                       "Varion\\Ngtcp2\\Stream cannot be constructed directly", 0);
 }
 
 PHP_METHOD(Ngtcp2_Stream, getId) {
@@ -247,7 +247,7 @@ void php_quic_stream_create(zval *return_value, zval *connection_zv,
 int php_ngtcp2_stream_init(INIT_FUNC_ARGS) {
   zend_class_entry ce;
 
-  INIT_NS_CLASS_ENTRY(ce, "Ngtcp2", "Stream", php_quic_stream_methods);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "Stream", php_quic_stream_methods);
   php_quic_stream_ce = zend_register_internal_class(&ce);
   php_quic_stream_ce->create_object = php_quic_stream_create_object;
 

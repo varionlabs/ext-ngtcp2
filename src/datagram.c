@@ -13,17 +13,17 @@ static zend_object_handlers php_quic_datagram_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_datagram_construct, 0, 0, 2)
   ZEND_ARG_TYPE_INFO(0, payload, IS_STRING, 0)
-  ZEND_ARG_OBJ_INFO(0, remoteAddress, Ngtcp2\\Address, 0)
-  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Ngtcp2\\Address, 1, "null")
+  ZEND_ARG_OBJ_INFO(0, remoteAddress, Varion\\Ngtcp2\\Address, 0)
+  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datagram_get_payload, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_datagram_get_remote, 0, 0, Ngtcp2\\Address, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_datagram_get_remote, 0, 0, Varion\\Ngtcp2\\Address, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_datagram_get_local, 0, 0, Ngtcp2\\Address, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_datagram_get_local, 0, 0, Varion\\Ngtcp2\\Address, 1)
 ZEND_END_ARG_INFO()
 
 PHP_METHOD(Ngtcp2_Datagram, __construct) {
@@ -126,7 +126,7 @@ static void php_quic_datagram_free_object(zend_object *object) {
 int php_ngtcp2_datagram_init(INIT_FUNC_ARGS) {
   zend_class_entry ce;
 
-  INIT_NS_CLASS_ENTRY(ce, "Ngtcp2", "Datagram", php_quic_datagram_methods);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "Datagram", php_quic_datagram_methods);
   php_quic_datagram_ce = zend_register_internal_class(&ce);
   php_quic_datagram_ce->create_object = php_quic_datagram_create_object;
 

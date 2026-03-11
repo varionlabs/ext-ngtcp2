@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Ngtcp2\Address;
-use Ngtcp2\Connection;
-use Ngtcp2\Datagram;
-use Ngtcp2\HandshakeCompleted;
-use Ngtcp2\StreamReadable;
+use Varion\Ngtcp2\Address;
+use Varion\Ngtcp2\Connection;
+use Varion\Ngtcp2\Datagram;
+use Varion\Ngtcp2\HandshakeCompleted;
+use Varion\Ngtcp2\StreamReadable;
 
 $remote = new Address('127.0.0.1', 4433);
 $connection = new Connection($remote);
