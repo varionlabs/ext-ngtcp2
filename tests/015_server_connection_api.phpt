@@ -23,7 +23,8 @@ try {
 }
 
 try {
-    ServerConnection::accept(new Datagram('x', new Address('127.0.0.1', 4433)));
+    $initial = hex2bin('c00000000108aaaaaaaaaaaaaaaa08bbbbbbbbbbbbbbbb');
+    ServerConnection::accept(new Datagram($initial, new Address('127.0.0.1', 4433)));
     echo "no-exception\n";
 } catch (Throwable $e) {
     var_dump(str_contains($e->getMessage(), 'not implemented yet'));

@@ -3,10 +3,14 @@
 #endif
 
 #include <Zend/zend_exceptions.h>
+#include <string.h>
+
+#include <ngtcp2/ngtcp2.h>
 
 #include "internal/address.h"
 #include "internal/connection.h"
 #include "internal/datagram.h"
+#include "internal/macros.h"
 #include "internal/server_connection.h"
 
 zend_class_entry *php_quic_server_connection_ce;
@@ -29,9 +33,12 @@ PHP_METHOD(Ngtcp2_ServerConnection, __construct) {
 }
 
 PHP_METHOD(Ngtcp2_ServerConnection, accept) {
+  php_quic_datagram *initial_datagram;
   zval *initial;
   zval *local_address = NULL;
   zval *options = NULL;
+  ngtcp2_version_cid vc;
+  int rv;
 
   ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_OBJECT_OF_CLASS(initial, php_quic_datagram_ce)
@@ -40,12 +47,44 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     Z_PARAM_ARRAY_OR_NULL(options)
   ZEND_PARSE_PARAMETERS_END();
 
-  (void)initial;
+  initial_datagram = Z_QUIC_DATAGRAM_P(initial);
+  if (initial_datagram->payload == NULL ||
+      ZSTR_LEN(initial_datagram->payload) == 0) {
+    zend_throw_exception(zend_ce_exception, "initial datagram payload is empty",
+                         0);
+    RETURN_THROWS();
+  }
+
+  memset(&vc, 0, sizeof(vc));
+  rv = ngtcp2_pkt_decode_version_cid(
+    &vc, (const uint8_t *)ZSTR_VAL(initial_datagram->payload),
+    ZSTR_LEN(initial_datagram->payload), 0);
+  if (rv != 0 && rv != NGTCP2_ERR_VERSION_NEGOTIATION) {
+    zend_throw_exception_ex(zend_ce_exception, 0,
+                            "failed to decode initial datagram: %s",
+                            ngtcp2_strerror(rv));
+    RETURN_THROWS();
+  }
+
+  if (!ngtcp2_is_supported_version(vc.version)) {
+    zend_throw_exception_ex(zend_ce_exception, 0,
+                            "unsupported QUIC version in initial datagram: 0x%08x",
+                            vc.version);
+    RETURN_THROWS();
+  }
+
+  if (vc.dcidlen > NGTCP2_MAX_CIDLEN || vc.scidlen > NGTCP2_MAX_CIDLEN) {
+    zend_throw_exception(zend_ce_exception,
+                         "initial datagram has unsupported CID length", 0);
+    RETURN_THROWS();
+  }
+
   (void)local_address;
   (void)options;
 
   zend_throw_exception(zend_ce_exception,
-                       "ServerConnection::accept is not implemented yet", 0);
+                       "ServerConnection::accept is not implemented yet (native server init pending)",
+                       0);
   RETURN_THROWS();
 }
 
