@@ -15,6 +15,12 @@ Then run the client in another terminal:
 php examples/client_minimal.php
 ```
 
+For a one-shot run that exits after first response payload:
+
+```sh
+php examples/client_once.php --host=127.0.0.1 --port=4433 --path=/
+```
+
 Optional flags:
 
 - `--docroot=/path/to/root`

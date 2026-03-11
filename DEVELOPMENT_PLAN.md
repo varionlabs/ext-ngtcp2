@@ -261,6 +261,7 @@ mock 方針:
   (`tests/110_integration_stream_tx.phpt`) を追加。
 - `examples/server_minimal.php` を追加し、`gtlsserver` を起動する最小サーバーラッパーを実装。
 - `examples/README.md` を追加し、server/client の実行手順を明記。
+- `sample_server.c` と現実装の差分整理として `docs/server_mode_gap.md` を追加。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
