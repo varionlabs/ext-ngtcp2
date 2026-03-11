@@ -262,3 +262,58 @@ mock 方針:
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
+
+## 12. サーバースクリプト作成計画
+
+目的:
+- 現在の client-only 制約を維持したまま、実運用に近い検証を行える最小 QUIC サーバー起動スクリプトを `examples/` に追加する。
+- 将来の native server mode 実装時に `sample_server.c` の接着点を再利用できるよう、移行前提の構成にする。
+
+前提:
+- 現時点の拡張 API は `Connection` が client 側初期化のみを提供しており、拡張単体で QUIC server accept loop は実装できない。
+- そのため第1段階は `/usr/sbin/gtlsserver` を使ったラッパースクリプトとして提供する。
+
+### Phase S1: 外部サーバー起動ラッパー例 (短期)
+
+作業:
+- `examples/server_minimal.php` を追加する。
+  - 自己署名証明書の生成 (既存ファイルがなければ `openssl` 実行)
+  - `gtlsserver` 起動 (`proc_open`) と終了処理 (`SIGTERM`, `proc_close`)
+  - host/port/docroot/証明書パスを引数で指定可能にする
+- `examples/README` または `tests/README.md` に実行手順を追加する。
+- 既存 `client_minimal.php` から接続して handshake できることを確認する。
+
+完了条件:
+- 開発者が 2 ターミナルで `server_minimal.php` と `client_minimal.php` を実行し、接続成立を再現できる。
+
+### Phase S2: sample_server.c 参照による native server mode 設計メモ (中期)
+
+参照ポイント (`sample_server.c`):
+- `ngtcp2_conn_server_new` 初期化経路
+- server 側 transport params 設定
+- server callback 群 (`recv_stream_data`, `stream_open`, `stream_close`, `handshake_completed`)
+- `ngtcp2_conn_writev_stream` / `ngtcp2_conn_write_connection_close` 送信経路
+- address validation, preferred address, stateless reset token
+
+作業:
+- server mode 導入時の最小 API 草案を追記する。
+  - 例: `ServerConnection` または `Connection::accept(...)` 系
+  - `recv/flush/pollEvents/onTimeout` の対称性維持
+- client 実装と共有できる内部部品を整理する。
+  - event queue / buffer / datagram 変換 / callback 登録
+- `sample_server.c` と現実装の差分一覧を作成する。
+
+完了条件:
+- server mode 実装着手時に必要な差分タスクが Issue レベルで分解済み。
+
+### Phase S3: native server mode MVP 実装 (長期)
+
+作業:
+- server-side connection 初期化を拡張へ追加する。
+- Initial packet 受信から handshake 完了までのイベント遷移を実装する。
+- 単一 bidi stream の受信/送信/close を client と同等 API で提供する。
+- PHPT + integration (loopback) を追加する。
+
+完了条件:
+- `examples/server_native_minimal.php` と client 例で往復通信が再現できる。
+- `server mode` が「v0 スコープ外」から「次期スコープ候補」へ昇格可能な品質になる。
