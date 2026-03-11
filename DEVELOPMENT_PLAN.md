@@ -259,6 +259,8 @@ mock 方針:
   UDP bind 制約環境では skip し、実行可能環境で handshake 完了を検証できる構成にした。
 - handshake 後の `openStream()/write()/end()/flush()` を検証する integration PHPT
   (`tests/110_integration_stream_tx.phpt`) を追加。
+- `examples/server_minimal.php` を追加し、`gtlsserver` を起動する最小サーバーラッパーを実装。
+- `examples/README.md` を追加し、server/client の実行手順を明記。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。

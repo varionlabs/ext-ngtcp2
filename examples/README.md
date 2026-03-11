@@ -1,0 +1,24 @@
+# Examples
+
+## Server wrapper (current workaround)
+
+The extension is currently client-only, so native QUIC server mode is not exposed yet.
+Use `server_minimal.php` to run `/usr/sbin/gtlsserver` as a local test server.
+
+```sh
+php examples/server_minimal.php --host=127.0.0.1 --port=4433
+```
+
+Then run the client in another terminal:
+
+```sh
+php examples/client_minimal.php
+```
+
+Optional flags:
+
+- `--docroot=/path/to/root`
+- `--cert=/path/to/server.crt`
+- `--key=/path/to/server.key`
+
+If cert/key are missing, the script generates a temporary self-signed certificate via `openssl`.
