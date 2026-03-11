@@ -267,7 +267,12 @@ mock 方針:
 - path migration の実装前メモとして `docs/path_migration_plan.md` を追加。
 - key update event / debug stats / nghttp3 統合などの分解メモとして `docs/post_v0_backlog.md` を追加。
 - `Varion\\Ngtcp2\\ServerConnection` クラス骨格を追加し、`accept()` を server mode の入口として予約。
-  現時点では `accept()` は未実装例外を返す。
+- `ServerConnection::accept()` に Initial datagram 検証と server-side native 初期化の土台を追加
+  (`certFile`/`keyFile` オプション指定時)。
+- `examples/server_native_minimal.php` を追加し、`ServerConnection::accept()` を使った
+  実験的な native server 受信ループ例を提供。
+- `tests/120_integration_native_server_accept.phpt` を追加し、native server 受理経路で
+  client/server handshake 成立を検証。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。

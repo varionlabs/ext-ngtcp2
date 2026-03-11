@@ -28,3 +28,14 @@ Optional flags:
 - `--key=/path/to/server.key`
 
 If cert/key are missing, the script generates a temporary self-signed certificate via `openssl`.
+
+## Experimental native server entry
+
+`ServerConnection::accept(...)` is now available as an experimental server-mode entry.
+You can try it with:
+
+```sh
+php examples/server_native_minimal.php --host=127.0.0.1 --port=4433 --alpn=h3
+```
+
+This is still an MVP path and not feature-complete server mode.

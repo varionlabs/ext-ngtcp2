@@ -27,7 +27,7 @@ try {
     ServerConnection::accept(new Datagram($initial, new Address('127.0.0.1', 4433)));
     echo "no-exception\n";
 } catch (Throwable $e) {
-    var_dump(str_contains($e->getMessage(), 'not implemented yet'));
+    var_dump(str_contains($e->getMessage(), 'requires options array'));
 }
 ?>
 --EXPECT--

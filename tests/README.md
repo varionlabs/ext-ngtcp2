@@ -4,6 +4,7 @@ This extension has two integration PHPT tests:
 
 - `100_integration_handshake.phpt`
 - `110_integration_stream_tx.phpt`
+- `120_integration_native_server_accept.phpt` (experimental native server path)
 
 These tests require:
 
@@ -24,5 +25,5 @@ NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/001_load_extension.
 Run integration PHPT tests:
 
 ```sh
-NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/100_integration_handshake.phpt tests/110_integration_stream_tx.phpt'
+NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/100_integration_handshake.phpt tests/110_integration_stream_tx.phpt tests/120_integration_native_server_accept.phpt'
 ```

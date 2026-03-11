@@ -159,6 +159,7 @@ static int php_quic_acked_stream_data_offset_cb(ngtcp2_conn *conn, int64_t strea
 
 void php_quic_callbacks_init(ngtcp2_callbacks *callbacks) {
   memset(callbacks, 0, sizeof(*callbacks));
+  callbacks->recv_client_initial = ngtcp2_crypto_recv_client_initial_cb;
   callbacks->client_initial = ngtcp2_crypto_client_initial_cb;
   callbacks->recv_crypto_data = ngtcp2_crypto_recv_crypto_data_cb;
   callbacks->handshake_completed = php_quic_handshake_completed_cb;

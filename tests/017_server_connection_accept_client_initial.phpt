@@ -23,7 +23,7 @@ try {
     ServerConnection::accept($initial);
     echo "no-exception\n";
 } catch (Throwable $e) {
-    var_dump(str_contains($e->getMessage(), 'not implemented yet'));
+    var_dump(str_contains($e->getMessage(), 'requires options array'));
 }
 ?>
 --EXPECT--
