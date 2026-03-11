@@ -273,6 +273,8 @@ mock 方針:
   実験的な native server 受信ループ例を提供。
 - `tests/120_integration_native_server_accept.phpt` を追加し、native server 受理経路で
   client/server handshake 成立を検証。
+- `tests/121_integration_native_server_stream_readable.phpt` を追加し、native server 側で
+  client stream 書き込みの `StreamReadable` イベントを検証。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
