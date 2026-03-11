@@ -29,7 +29,7 @@ declare(strict_types=1);
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\Datagram;
-use Varion\Ngtcp2\HandshakeCompleted;
+use Varion\Nghttp2\Events\HandshakeCompleted;
 
 function mktemp_dir(string $prefix): string
 {

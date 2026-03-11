@@ -11,7 +11,7 @@ if (!extension_loaded('ngtcp2')) {
 
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
-use Varion\Ngtcp2\ConnectionClosed;
+use Varion\Nghttp2\Events\ConnectionClosed;
 
 $conn = new Connection(new Address('127.0.0.1', 4433));
 $conn->close(77, 'normal-close');

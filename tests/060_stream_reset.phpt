@@ -11,7 +11,7 @@ if (!extension_loaded('ngtcp2')) {
 
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
-use Varion\Ngtcp2\StreamReset;
+use Varion\Nghttp2\Events\StreamReset;
 
 $conn = new Connection(new Address('127.0.0.1', 4433));
 $stream = $conn->openStream();

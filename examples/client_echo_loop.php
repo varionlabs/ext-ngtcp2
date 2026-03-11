@@ -5,8 +5,8 @@ declare(strict_types=1);
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\Datagram;
-use Varion\Ngtcp2\HandshakeCompleted;
-use Varion\Ngtcp2\StreamReadable;
+use Varion\Nghttp2\Events\HandshakeCompleted;
+use Varion\Nghttp2\Events\StreamReadable;
 
 $remote = new Address('127.0.0.1', 4433);
 $connection = new Connection($remote);

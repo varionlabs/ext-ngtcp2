@@ -16,7 +16,7 @@ if (!is_executable('/usr/bin/openssl')) {
 
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
-use Varion\Ngtcp2\ConnectionClosed;
+use Varion\Nghttp2\Events\ConnectionClosed;
 use Varion\Ngtcp2\ServerConnection;
 
 $dir = sys_get_temp_dir() . '/ngtcp2-srv-' . bin2hex(random_bytes(4));

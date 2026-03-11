@@ -24,9 +24,9 @@ declare(strict_types=1);
 
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
-use Varion\Ngtcp2\ConnectionClosed;
+use Varion\Nghttp2\Events\ConnectionClosed;
 use Varion\Ngtcp2\Datagram;
-use Varion\Ngtcp2\HandshakeCompleted;
+use Varion\Nghttp2\Events\HandshakeCompleted;
 use Varion\Ngtcp2\ServerConnection;
 
 function parseAddr(string $peer): Address

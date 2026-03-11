@@ -205,48 +205,53 @@ int php_ngtcp2_event_init(INIT_FUNC_ARGS) {
   INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "Event", php_quic_event_methods);
   php_quic_event_ce = zend_register_internal_class(&ce);
   php_quic_event_ce->create_object = php_quic_event_create_object;
+  php_quic_event_ce->ce_flags |= ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "ConnectionEvent", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "ConnectionEvent", NULL);
   php_quic_connection_event_ce =
     zend_register_internal_class_ex(&ce, php_quic_event_ce);
+  php_quic_connection_event_ce->ce_flags |= ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "StreamEvent", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "StreamEvent", NULL);
   php_quic_stream_event_ce =
     zend_register_internal_class_ex(&ce, php_quic_event_ce);
+  php_quic_stream_event_ce->ce_flags |= ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "TerminalStreamEvent", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "TerminalStreamEvent", NULL);
   php_quic_terminal_stream_event_ce =
     zend_register_internal_class_ex(&ce, php_quic_stream_event_ce);
+  php_quic_terminal_stream_event_ce->ce_flags |=
+    ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "HandshakeCompleted", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "HandshakeCompleted", NULL);
   php_quic_handshake_completed_ce =
     zend_register_internal_class_ex(&ce, php_quic_connection_event_ce);
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "ConnectionClosed", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "ConnectionClosed", NULL);
   php_quic_connection_closed_ce =
     zend_register_internal_class_ex(&ce, php_quic_connection_event_ce);
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "ConnectionDraining", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "ConnectionDraining", NULL);
   php_quic_connection_draining_ce =
     zend_register_internal_class_ex(&ce, php_quic_connection_event_ce);
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "StreamOpened", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "StreamOpened", NULL);
   php_quic_stream_opened_ce =
     zend_register_internal_class_ex(&ce, php_quic_stream_event_ce);
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "StreamReadable", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "StreamReadable", NULL);
   php_quic_stream_readable_ce =
     zend_register_internal_class_ex(&ce, php_quic_stream_event_ce);
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "StreamWritable", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "StreamWritable", NULL);
   php_quic_stream_writable_ce =
     zend_register_internal_class_ex(&ce, php_quic_stream_event_ce);
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "StreamClosed", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "StreamClosed", NULL);
   php_quic_stream_closed_ce =
     zend_register_internal_class_ex(&ce, php_quic_terminal_stream_event_ce);
 
-  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "StreamReset", NULL);
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Nghttp2\\Events", "StreamReset", NULL);
   php_quic_stream_reset_ce =
     zend_register_internal_class_ex(&ce, php_quic_terminal_stream_event_ce);
 
