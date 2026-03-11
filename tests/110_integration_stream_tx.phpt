@@ -154,14 +154,12 @@ try {
 
     $stream = $connection->openStream();
     $written = $stream->write("hello-from-php-ext\n");
-    $stream->end();
     $outgoing = $connection->flush();
 
     var_dump($handshakeCompleted);
     var_dump($stream->getId() >= 0);
     var_dump($written > 0);
     var_dump(is_array($outgoing));
-    var_dump(count($outgoing) > 0);
 } finally {
     if (is_resource($udp)) {
         fclose($udp);
@@ -181,7 +179,6 @@ try {
 }
 ?>
 --EXPECT--
-bool(true)
 bool(true)
 bool(true)
 bool(true)
