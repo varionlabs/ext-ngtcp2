@@ -791,6 +791,8 @@ PHP_METHOD(Ngtcp2_Connection, close) {
   php_quic_connection *connection;
   zend_long error_code = 0;
   zend_string *reason = NULL;
+  const uint8_t *reason_data = NULL;
+  size_t reason_len = 0;
 
   ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
@@ -803,8 +805,20 @@ PHP_METHOD(Ngtcp2_Connection, close) {
     return;
   }
 
+  if (connection->close_reason != NULL) {
+    zend_string_release(connection->close_reason);
+    connection->close_reason = NULL;
+  }
+
+  if (reason != NULL && ZSTR_LEN(reason) > 0) {
+    connection->close_reason = zend_string_copy(reason);
+    reason_data = (const uint8_t *)ZSTR_VAL(connection->close_reason);
+    reason_len = ZSTR_LEN(connection->close_reason);
+  }
+
   ngtcp2_ccerr_set_application_error(&connection->last_error,
-                                     (uint64_t)error_code, NULL, 0);
+                                     (uint64_t)error_code, reason_data,
+                                     reason_len);
   connection->close_requested = 1;
   connection->closed = 1;
 
@@ -864,6 +878,7 @@ static zend_object *php_quic_connection_create_object(zend_class_entry *ce) {
   connection->local_addrlen = 0;
   ZVAL_UNDEF(&connection->remote_address_zv);
   ZVAL_UNDEF(&connection->local_address_zv);
+  connection->close_reason = NULL;
   connection->next_stream_id = 0;
   connection->established = 0;
   connection->draining = 0;
@@ -903,6 +918,11 @@ static void php_quic_connection_free_object(zend_object *object) {
   if (!Z_ISUNDEF(connection->local_address_zv)) {
     zval_ptr_dtor(&connection->local_address_zv);
     ZVAL_UNDEF(&connection->local_address_zv);
+  }
+
+  if (connection->close_reason != NULL) {
+    zend_string_release(connection->close_reason);
+    connection->close_reason = NULL;
   }
 
   php_quic_tls_gnutls_cleanup(connection);

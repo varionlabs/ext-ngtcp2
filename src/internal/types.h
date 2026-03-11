@@ -66,6 +66,7 @@ typedef struct _php_quic_connection {
   socklen_t local_addrlen;
   zval remote_address_zv;
   zval local_address_zv;
+  zend_string *close_reason;
   HashTable streams;
   php_quic_event_queue events;
   int64_t next_stream_id;

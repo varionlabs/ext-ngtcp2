@@ -145,6 +145,7 @@ PHP_METHOD(Ngtcp2_Stream, reset) {
   php_quic_stream_entry *entry;
   php_quic_connection *connection;
   zend_long error_code;
+  int rv = 0;
 
   ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_LONG(error_code)
@@ -156,17 +157,32 @@ PHP_METHOD(Ngtcp2_Stream, reset) {
     RETURN_THROWS();
   }
 
+  if (Z_ISUNDEF(stream->connection) || Z_TYPE(stream->connection) != IS_OBJECT) {
+    zend_throw_exception(zend_ce_exception, "Stream connection is not available", 0);
+    RETURN_THROWS();
+  }
+
+  connection = Z_QUIC_CONNECTION_P(&stream->connection);
+  if (connection->conn != NULL && !connection->closed) {
+    rv = ngtcp2_conn_shutdown_stream(connection->conn, 0, stream->stream_id,
+                                     (uint64_t)error_code);
+    if (rv != 0) {
+      zend_throw_exception_ex(zend_ce_exception, 0,
+                              "ngtcp2_conn_shutdown_stream failed: %s",
+                              ngtcp2_strerror(rv));
+      RETURN_THROWS();
+    }
+  }
+
   entry->reset = 1;
   entry->closed = 1;
   entry->readable = 0;
   entry->writable = 0;
   entry->fin_pending = 0;
+  entry->pending_open = 0;
 
-  if (!Z_ISUNDEF(stream->connection) && Z_TYPE(stream->connection) == IS_OBJECT) {
-    connection = Z_QUIC_CONNECTION_P(&stream->connection);
-    php_quic_connection_push_event(connection, PHP_QUIC_EVENT_STREAM_RESET,
-                                   stream->stream_id, (uint64_t)error_code, 0, NULL);
-  }
+  php_quic_connection_push_event(connection, PHP_QUIC_EVENT_STREAM_RESET,
+                                 stream->stream_id, (uint64_t)error_code, 0, NULL);
 }
 
 PHP_METHOD(Ngtcp2_Stream, isReadable) {

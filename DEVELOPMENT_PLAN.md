@@ -246,3 +246,16 @@ mock 方針:
 - PHPT + integration の最低スイートが CI で再現可能。
 - 既知制約 (server mode 未対応等) がドキュメント化されている。
 
+## 11. 進捗メモ (2026-03-11)
+
+完了済み:
+- Phase 0-5 相当の土台を実装済み (`recv`/`flush`/`pollEvents`/`timeout`/`close`)。
+- `Varion\\Ngtcp2` 名前空間へ統一済み。
+- ngtcp2 + GnuTLS 連携で client 接続オブジェクトと callback 配線を実装済み。
+- `Stream::reset()` を `ngtcp2_conn_shutdown_stream()` に接続し、transport state と API state の乖離を解消。
+- `close($errorCode, $reason)` で reason phrase を ngtcp2 の close error (`ngtcp2_ccerr`) に反映。
+- PHPT 8件が全件 PASS。
+
+未着手/残課題:
+- integration test (loopback QUIC peer 実通信) の追加。
+- server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
