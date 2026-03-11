@@ -257,6 +257,8 @@ mock 方針:
 - PHPT 8件が全件 PASS。
 - `gtlsserver` を使った integration handshake PHPT (`tests/100_integration_handshake.phpt`) を追加。
   UDP bind 制約環境では skip し、実行可能環境で handshake 完了を検証できる構成にした。
+- handshake 後の `openStream()/write()/end()/flush()` を検証する integration PHPT
+  (`tests/110_integration_stream_tx.phpt`) を追加。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
