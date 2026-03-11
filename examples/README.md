@@ -44,4 +44,8 @@ To test stream read/write behavior on the same connection, use the echo variant:
 php examples/server_native_echo.php --host=127.0.0.1 --port=4433 --alpn=h3 --prefix='echo: '
 ```
 
+`server_native_minimal.php` / `server_native_echo.php` print `recv warning:`,
+`timeout warning:`, and `flush warning:` during close/draining transitions.
+These warnings are expected in the current MVP path and are non-fatal.
+
 This is still an MVP path and not feature-complete server mode.

@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_hrtime.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <gnutls/crypto.h>
@@ -48,6 +49,21 @@ static int php_quic_server_set_stateless_reset_token(
   }
 
   return SUCCESS;
+}
+
+static zend_bool php_quic_test_force_server_new_failure(void) {
+  const char *flag = getenv("NGTCP2_TEST_FORCE_SERVER_NEW_FAILURE");
+
+  if (flag == NULL) {
+    return 0;
+  }
+
+  if (strcmp(flag, "1") == 0 || strcasecmp(flag, "true") == 0 ||
+      strcasecmp(flag, "yes") == 0) {
+    return 1;
+  }
+
+  return 0;
 }
 
 static int php_quic_default_local_addr(int family, struct sockaddr_storage *storage,
@@ -329,6 +345,18 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   path.local.addrlen = connection->local_addrlen;
   path.remote.addr = (struct sockaddr *)&connection->remote_addr;
   path.remote.addrlen = connection->remote_addrlen;
+
+  if (php_quic_test_force_server_new_failure()) {
+    zend_string_release(cert_file);
+    zend_string_release(key_file);
+    zend_string_release(alpn);
+    zval_ptr_dtor(&server_zv);
+    zend_throw_exception(
+      zend_ce_exception,
+      "ServerConnection::accept [ngtcp2:new]: forced failure by NGTCP2_TEST_FORCE_SERVER_NEW_FAILURE",
+      0);
+    RETURN_THROWS();
+  }
 
   rv = ngtcp2_conn_server_new(&connection->conn, &dcid, &scid, &path, vc.version,
                               &callbacks, &settings, &params, NULL, connection);

@@ -84,5 +84,4 @@ Implemented:
 
 Remaining:
 
-- Add a deterministic test case for `[ngtcp2:new]` failure path (currently difficult to force in normal env)
 - Keep integration execution guidance in sync for UDP-restricted runners
