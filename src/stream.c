@@ -107,12 +107,13 @@ PHP_METHOD(Ngtcp2_Stream, write) {
     RETURN_THROWS();
   }
 
-  if (entry->closed || entry->fin_sent) {
+  if (entry->closed || entry->fin_sent || entry->fin_pending) {
     zend_throw_exception(zend_ce_exception, "Stream is not writable", 0);
     RETURN_THROWS();
   }
 
   php_quic_buffer_append(&entry->tx_buffer, ZSTR_VAL(data), ZSTR_LEN(data));
+  entry->writable = 0;
   RETURN_LONG((zend_long)ZSTR_LEN(data));
 }
 
@@ -135,7 +136,7 @@ PHP_METHOD(Ngtcp2_Stream, end) {
   if (final_data != NULL) {
     php_quic_buffer_append(&entry->tx_buffer, ZSTR_VAL(final_data), ZSTR_LEN(final_data));
   }
-  entry->fin_sent = 1;
+  entry->fin_pending = 1;
   entry->writable = 0;
 }
 
@@ -159,6 +160,7 @@ PHP_METHOD(Ngtcp2_Stream, reset) {
   entry->closed = 1;
   entry->readable = 0;
   entry->writable = 0;
+  entry->fin_pending = 0;
 
   if (!Z_ISUNDEF(stream->connection) && Z_TYPE(stream->connection) == IS_OBJECT) {
     connection = Z_QUIC_CONNECTION_P(&stream->connection);

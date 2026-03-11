@@ -4,6 +4,8 @@
 #include "php.h"
 #include <gnutls/gnutls.h>
 #include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
+#include <sys/socket.h>
 #include <stdint.h>
 
 typedef enum _php_quic_event_type {
@@ -21,12 +23,15 @@ typedef struct _php_quic_stream_entry {
   int64_t stream_id;
   zend_string *rx_buffer;
   zend_string *tx_buffer;
+  uint64_t tx_offset;
   zend_bool readable;
   zend_bool writable;
   zend_bool closed;
   zend_bool reset;
   zend_bool fin_sent;
   zend_bool fin_recv;
+  zend_bool fin_pending;
+  zend_bool pending_open;
 } php_quic_stream_entry;
 
 typedef struct _php_quic_event {
@@ -51,14 +56,26 @@ typedef struct _php_quic_event_queue {
 
 typedef struct _php_quic_connection {
   ngtcp2_conn *conn;
+  ngtcp2_crypto_conn_ref conn_ref;
   gnutls_certificate_credentials_t cred;
   gnutls_session_t session;
+  ngtcp2_ccerr last_error;
+  struct sockaddr_storage remote_addr;
+  struct sockaddr_storage local_addr;
+  socklen_t remote_addrlen;
+  socklen_t local_addrlen;
+  zval remote_address_zv;
+  zval local_address_zv;
   HashTable streams;
   php_quic_event_queue events;
   int64_t next_stream_id;
   zend_bool established;
   zend_bool draining;
   zend_bool closed;
+  zend_bool close_requested;
+  zend_bool close_packet_sent;
+  zend_bool close_event_emitted;
+  zend_bool draining_event_emitted;
   zend_object std;
 } php_quic_connection;
 

@@ -2,6 +2,9 @@
 #include "config.h"
 #endif
 
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "internal/address.h"
@@ -98,4 +101,99 @@ int php_ngtcp2_address_init(INIT_FUNC_ARGS) {
   php_quic_address_handlers.free_obj = php_quic_address_free_object;
 
   return SUCCESS;
+}
+
+int php_quic_address_to_sockaddr(const zval *address_zv,
+                                 struct sockaddr_storage *storage,
+                                 socklen_t *addrlen) {
+  php_quic_address *address;
+  struct addrinfo hints;
+  struct addrinfo *res = NULL;
+  struct addrinfo *rp;
+  char port_buf[8];
+  int rv;
+
+  if (Z_TYPE_P(address_zv) != IS_OBJECT ||
+      !instanceof_function(Z_OBJCE_P(address_zv), php_quic_address_ce)) {
+    php_error_docref(NULL, E_WARNING, "address must be Varion\\Ngtcp2\\Address");
+    return FAILURE;
+  }
+
+  address = Z_QUIC_ADDRESS_P(address_zv);
+  if (address->host == NULL || ZSTR_LEN(address->host) == 0) {
+    php_error_docref(NULL, E_WARNING, "address host must not be empty");
+    return FAILURE;
+  }
+
+  if (address->port < 0 || address->port > 65535) {
+    php_error_docref(NULL, E_WARNING, "address port must be in range 0..65535");
+    return FAILURE;
+  }
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_DGRAM;
+  hints.ai_flags = AI_NUMERICSERV;
+
+  snprintf(port_buf, sizeof(port_buf), "%ld", address->port);
+  rv = getaddrinfo(ZSTR_VAL(address->host), port_buf, &hints, &res);
+  if (rv != 0) {
+    php_error_docref(NULL, E_WARNING, "getaddrinfo failed for %s:%s: %s",
+                     ZSTR_VAL(address->host), port_buf, gai_strerror(rv));
+    return FAILURE;
+  }
+
+  for (rp = res; rp != NULL; rp = rp->ai_next) {
+    if (rp->ai_family == AF_INET || rp->ai_family == AF_INET6) {
+      memset(storage, 0, sizeof(*storage));
+      memcpy(storage, rp->ai_addr, rp->ai_addrlen);
+      *addrlen = (socklen_t)rp->ai_addrlen;
+      freeaddrinfo(res);
+      return SUCCESS;
+    }
+  }
+
+  freeaddrinfo(res);
+  php_error_docref(NULL, E_WARNING, "unsupported address family for host %s",
+                   ZSTR_VAL(address->host));
+  return FAILURE;
+}
+
+void php_quic_address_init_from_sockaddr(zval *return_value,
+                                         const struct sockaddr *addr,
+                                         socklen_t addrlen) {
+  php_quic_address *address;
+  char host[INET6_ADDRSTRLEN];
+  uint16_t port = 0;
+
+  (void)addrlen;
+  host[0] = '\0';
+
+  if (addr != NULL) {
+    switch (addr->sa_family) {
+    case AF_INET: {
+      const struct sockaddr_in *sin = (const struct sockaddr_in *)addr;
+      inet_ntop(AF_INET, &sin->sin_addr, host, sizeof(host));
+      port = ntohs(sin->sin_port);
+      break;
+    }
+    case AF_INET6: {
+      const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)addr;
+      inet_ntop(AF_INET6, &sin6->sin6_addr, host, sizeof(host));
+      port = ntohs(sin6->sin6_port);
+      break;
+    }
+    default:
+      break;
+    }
+  }
+
+  object_init_ex(return_value, php_quic_address_ce);
+  address = Z_QUIC_ADDRESS_P(return_value);
+
+  if (address->host != NULL) {
+    zend_string_release(address->host);
+  }
+  address->host = zend_string_init(host, strlen(host), 0);
+  address->port = (zend_long)port;
 }

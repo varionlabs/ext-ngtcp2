@@ -3,10 +3,19 @@
 #endif
 
 #include <ngtcp2/ngtcp2_crypto_gnutls.h>
+#include <string.h>
 
 #include "internal/tls.h"
 
 int php_quic_tls_gnutls_init_client(php_quic_connection *connection) {
+  static const char priority[] =
+    "NORMAL:-VERS-ALL:+VERS-TLS1.3:-CIPHER-ALL:+AES-128-GCM:+AES-256-GCM:"
+    "+CHACHA20-POLY1305:+AES-128-CCM:-GROUP-ALL:+GROUP-SECP256R1:+GROUP-X25519:"
+    "+GROUP-SECP384R1:+GROUP-SECP521R1:%DISABLE_TLS13_COMPAT_MODE";
+  gnutls_datum_t alpn = {
+    .data = (unsigned char *)"h3",
+    .size = 2,
+  };
   int rv;
 
   rv = gnutls_certificate_allocate_credentials(&connection->cred);
@@ -28,6 +37,14 @@ int php_quic_tls_gnutls_init_client(php_quic_connection *connection) {
     return FAILURE;
   }
 
+  rv = gnutls_priority_set_direct(connection->session, priority, NULL);
+  if (rv != 0) {
+    php_error_docref(NULL, E_WARNING, "gnutls_priority_set_direct failed: %s",
+                     gnutls_strerror(rv));
+    php_quic_tls_gnutls_cleanup(connection);
+    return FAILURE;
+  }
+
   if (ngtcp2_crypto_gnutls_configure_client_session(connection->session) != 0) {
     php_error_docref(NULL, E_WARNING,
                      "ngtcp2_crypto_gnutls_configure_client_session failed");
@@ -38,6 +55,12 @@ int php_quic_tls_gnutls_init_client(php_quic_connection *connection) {
     return FAILURE;
   }
 
+  rv = gnutls_certificate_set_x509_system_trust(connection->cred);
+  if (rv < 0) {
+    php_error_docref(NULL, E_WARNING, "gnutls_certificate_set_x509_system_trust: %s",
+                     gnutls_strerror(rv));
+  }
+
   rv = gnutls_credentials_set(connection->session, GNUTLS_CRD_CERTIFICATE,
                               connection->cred);
   if (rv != 0) {
@@ -46,6 +69,16 @@ int php_quic_tls_gnutls_init_client(php_quic_connection *connection) {
     php_quic_tls_gnutls_cleanup(connection);
     return FAILURE;
   }
+
+  rv = gnutls_alpn_set_protocols(connection->session, &alpn, 1, GNUTLS_ALPN_MANDATORY);
+  if (rv != 0) {
+    php_error_docref(NULL, E_WARNING, "gnutls_alpn_set_protocols failed: %s",
+                     gnutls_strerror(rv));
+    php_quic_tls_gnutls_cleanup(connection);
+    return FAILURE;
+  }
+
+  gnutls_session_set_ptr(connection->session, &connection->conn_ref);
 
   return SUCCESS;
 }
