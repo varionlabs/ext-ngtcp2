@@ -7,6 +7,7 @@ This extension has two integration PHPT tests:
 - `120_integration_native_server_accept.phpt` (experimental native server path)
 - `121_integration_native_server_stream_readable.phpt` (experimental native stream receive path)
 - `122_integration_native_server_stream_roundtrip.phpt` (experimental native stream reply path)
+- `123_integration_native_server_close.phpt` (experimental native close propagation path)
 
 These tests require:
 
@@ -33,5 +34,5 @@ NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/015_server_connecti
 Run integration PHPT tests:
 
 ```sh
-NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/100_integration_handshake.phpt tests/110_integration_stream_tx.phpt tests/120_integration_native_server_accept.phpt tests/121_integration_native_server_stream_readable.phpt tests/122_integration_native_server_stream_roundtrip.phpt'
+NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/100_integration_handshake.phpt tests/110_integration_stream_tx.phpt tests/120_integration_native_server_accept.phpt tests/121_integration_native_server_stream_readable.phpt tests/122_integration_native_server_stream_roundtrip.phpt tests/123_integration_native_server_close.phpt'
 ```

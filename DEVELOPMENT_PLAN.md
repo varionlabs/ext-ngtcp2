@@ -286,6 +286,8 @@ mock 方針:
 - `ServerConnection::accept()` の server transport params で
   `stateless_reset_token_present` と token 生成を明示関数化し、
   `sample_server.c` との差分を縮小。
+- `tests/123_integration_native_server_close.phpt` を追加し、native server の `close()` が
+  client 側の `ConnectionClosed`/`isClosed()` に伝播することを統合で検証。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。
