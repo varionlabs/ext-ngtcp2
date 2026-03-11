@@ -72,3 +72,17 @@ Use these areas as implementation anchors:
 3. Server can read request bytes and send response bytes on one bidi stream.
 4. Close/draining transition is observable from events and state methods.
 5. New PHPT + integration tests are reproducible in a UDP-enabled environment.
+
+## Status (2026-03-11)
+
+Implemented:
+
+- `ServerConnection::accept(...)` with `ngtcp2_conn_server_new` path
+- handshake event progression and stream RX/TX path
+- server close propagation integration (`tests/123`)
+- `accept` stage-based error prefixes (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:read_initial]`)
+
+Remaining:
+
+- Add a deterministic test case for `[ngtcp2:new]` failure path (currently difficult to force in normal env)
+- Keep integration execution guidance in sync for UDP-restricted runners

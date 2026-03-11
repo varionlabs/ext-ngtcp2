@@ -293,6 +293,11 @@ mock 方針:
 - `ServerConnection::accept()` の失敗メッセージを段階別プレフィックス
   (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:new]` など) へ整理。
 - `tests/README.md` に Server MVP Exit criteria とテストケースの対応表を追加。
+- `tests/023_server_accept_tls_error_stage.phpt` と
+  `tests/024_server_accept_read_initial_error_stage.phpt` を追加し、
+  `accept()` エラー段階 (`[tls]`, `[ngtcp2:read_initial]`) の再現性を強化。
+- `examples/server_native_minimal.php` / `examples/server_native_echo.php` で
+  close/draining 中の `recv/flush/onTimeout` 例外を警告ログ化し、ループ継続性を改善。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。

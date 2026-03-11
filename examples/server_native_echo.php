@@ -127,9 +127,17 @@ while (!$server->isClosed()) {
     $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
     if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
         $peer = $from;
-        $server->recv(new Datagram($packet, parsePeerAddress($from), $local));
+        try {
+            $server->recv(new Datagram($packet, parsePeerAddress($from), $local));
+        } catch (Throwable $e) {
+            fwrite(STDERR, "recv warning: {$e->getMessage()}\n");
+        }
     } else {
-        $server->onTimeout();
+        try {
+            $server->onTimeout();
+        } catch (Throwable $e) {
+            fwrite(STDERR, "timeout warning: {$e->getMessage()}\n");
+        }
     }
 
     foreach ($server->pollEvents() as $event) {
@@ -154,8 +162,12 @@ while (!$server->isClosed()) {
         continue;
     }
 
-    foreach ($server->flush() as $outgoing) {
-        stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
+    try {
+        foreach ($server->flush() as $outgoing) {
+            stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
+        }
+    } catch (Throwable $e) {
+        fwrite(STDERR, "flush warning: {$e->getMessage()}\n");
     }
 
     usleep(10000);
