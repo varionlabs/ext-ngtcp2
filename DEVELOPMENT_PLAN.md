@@ -266,6 +266,8 @@ mock 方針:
 - QUIC DATAGRAM extension の実装前メモとして `docs/datagram_extension_plan.md` を追加。
 - path migration の実装前メモとして `docs/path_migration_plan.md` を追加。
 - key update event / debug stats / nghttp3 統合などの分解メモとして `docs/post_v0_backlog.md` を追加。
+- `Varion\\Ngtcp2\\ServerConnection` クラス骨格を追加し、`accept()` を server mode の入口として予約。
+  現時点では `accept()` は未実装例外を返す。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。

@@ -30,6 +30,7 @@ if test "$PHP_NGTCP2" != "no"; then
     src/datagram.c
     src/event.c
     src/queue.c
+    src/server_connection.c
     src/stream.c
     src/tls_gnutls.c
   ], [$ext_shared])
