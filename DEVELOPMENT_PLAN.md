@@ -288,6 +288,11 @@ mock 方針:
   `sample_server.c` との差分を縮小。
 - `tests/123_integration_native_server_close.phpt` を追加し、native server の `close()` が
   client 側の `ConnectionClosed`/`isClosed()` に伝播することを統合で検証。
+- close/draining 期間の `recv()/flush()/onTimeout()` で `ERR_CLOSING` / `ERR_DRAINING` を
+  非致命扱いに統一し、イベントループの継続性を改善。
+- `ServerConnection::accept()` の失敗メッセージを段階別プレフィックス
+  (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:new]` など) へ整理。
+- `tests/README.md` に Server MVP Exit criteria とテストケースの対応表を追加。
 
 未着手/残課題:
 - server mode / DATAGRAM拡張 / path migration など v0 スコープ外項目の整理。

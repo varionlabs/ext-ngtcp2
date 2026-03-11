@@ -30,6 +30,10 @@ static ngtcp2_tstamp php_quic_timestamp(void) {
   return (ngtcp2_tstamp)zend_hrtime();
 }
 
+static zend_bool php_quic_connection_is_nonfatal_closing_error(int rv) {
+  return rv == NGTCP2_ERR_CLOSING || rv == NGTCP2_ERR_DRAINING;
+}
+
 static ngtcp2_conn *php_quic_get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
   php_quic_connection *connection = conn_ref->user_data;
   return connection->conn;
@@ -514,6 +518,11 @@ PHP_METHOD(Ngtcp2_Connection, recv) {
                             (const uint8_t *)ZSTR_VAL(datagram->payload),
                             ZSTR_LEN(datagram->payload), php_quic_timestamp());
   if (rv != 0) {
+    if (php_quic_connection_is_nonfatal_closing_error(rv)) {
+      php_quic_connection_sync_state(connection);
+      return;
+    }
+
     if (!connection->last_error.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
         ngtcp2_ccerr_set_tls_alert(&connection->last_error,
@@ -544,6 +553,11 @@ PHP_METHOD(Ngtcp2_Connection, onTimeout) {
 
   rv = ngtcp2_conn_handle_expiry(connection->conn, php_quic_timestamp());
   if (rv != 0) {
+    if (php_quic_connection_is_nonfatal_closing_error(rv)) {
+      php_quic_connection_sync_state(connection);
+      return;
+    }
+
     ngtcp2_ccerr_set_liberr(&connection->last_error, rv, NULL, 0);
     php_quic_connection_throw_ngtcp2_error(rv, "ngtcp2_conn_handle_expiry");
     RETURN_THROWS();
@@ -626,6 +640,12 @@ PHP_METHOD(Ngtcp2_Connection, flush) {
       php_quic_timestamp());
 
     if (nwrite < 0) {
+      if (php_quic_connection_is_nonfatal_closing_error((int)nwrite)) {
+        connection->close_packet_sent = 1;
+        php_quic_connection_sync_state(connection);
+        return;
+      }
+
       php_quic_connection_throw_ngtcp2_error((int)nwrite,
                                              "ngtcp2_conn_write_connection_close");
       RETURN_THROWS();
@@ -707,6 +727,10 @@ PHP_METHOD(Ngtcp2_Connection, flush) {
         php_quic_connection_update_tx_entry(connection, entry, wdatalen,
                                             fin != 0, 0);
         continue;
+      }
+      if (php_quic_connection_is_nonfatal_closing_error((int)nwrite)) {
+        php_quic_connection_sync_state(connection);
+        break;
       }
 
       ngtcp2_ccerr_set_liberr(&connection->last_error, (int)nwrite, NULL, 0);

@@ -80,7 +80,7 @@ static zend_string *php_quic_get_required_string_option(HashTable *options,
   zv = zend_hash_str_find(options, name, strlen(name));
   if (zv == NULL || Z_TYPE_P(zv) != IS_STRING || Z_STRLEN_P(zv) == 0) {
     zend_throw_exception_ex(zend_ce_exception, 0,
-                            "ServerConnection::accept options['%s'] must be a non-empty string",
+                            "ServerConnection::accept [options]: options['%s'] must be a non-empty string",
                             name);
     return NULL;
   }
@@ -100,7 +100,7 @@ static zend_string *php_quic_get_optional_string_option(HashTable *options,
 
   if (Z_TYPE_P(zv) != IS_STRING || Z_STRLEN_P(zv) == 0) {
     zend_throw_exception_ex(zend_ce_exception, 0,
-                            "ServerConnection::accept options['%s'] must be a non-empty string",
+                            "ServerConnection::accept [options]: options['%s'] must be a non-empty string",
                             name);
     return NULL;
   }
@@ -159,7 +159,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   initial_datagram = Z_QUIC_DATAGRAM_P(initial);
   if (initial_datagram->payload == NULL ||
       ZSTR_LEN(initial_datagram->payload) == 0) {
-    zend_throw_exception(zend_ce_exception, "initial datagram payload is empty",
+    zend_throw_exception(zend_ce_exception, "ServerConnection::accept [initial]: initial datagram payload is empty",
                          0);
     RETURN_THROWS();
   }
@@ -170,28 +170,28 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     ZSTR_LEN(initial_datagram->payload), 0);
   if (rv != 0 && rv != NGTCP2_ERR_VERSION_NEGOTIATION) {
     zend_throw_exception_ex(zend_ce_exception, 0,
-                            "failed to decode initial datagram: %s",
+                            "ServerConnection::accept [decode]: failed to decode initial datagram: %s",
                             ngtcp2_strerror(rv));
     RETURN_THROWS();
   }
 
   if (!ngtcp2_is_supported_version(vc.version)) {
     zend_throw_exception_ex(zend_ce_exception, 0,
-                            "unsupported QUIC version in initial datagram: 0x%08x",
+                            "ServerConnection::accept [decode]: unsupported QUIC version in initial datagram: 0x%08x",
                             vc.version);
     RETURN_THROWS();
   }
 
   if (vc.dcidlen > NGTCP2_MAX_CIDLEN || vc.scidlen > NGTCP2_MAX_CIDLEN) {
     zend_throw_exception(zend_ce_exception,
-                         "initial datagram has unsupported CID length", 0);
+                         "ServerConnection::accept [decode]: initial datagram has unsupported CID length", 0);
     RETURN_THROWS();
   }
 
   if (options == NULL || Z_TYPE_P(options) != IS_ARRAY) {
     zend_throw_exception(
       zend_ce_exception,
-      "ServerConnection::accept requires options array with certFile and keyFile",
+      "ServerConnection::accept [options]: requires options array with certFile and keyFile",
       0);
     RETURN_THROWS();
   }
@@ -216,7 +216,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
 
   if (php_quic_address_to_sockaddr(&initial_datagram->remote_address, &remote_addr,
                                    &remote_addrlen) != SUCCESS) {
-    zend_throw_exception(zend_ce_exception, "Datagram.remoteAddress is invalid", 0);
+    zend_throw_exception(zend_ce_exception, "ServerConnection::accept [address]: Datagram.remoteAddress is invalid", 0);
     zend_string_release(cert_file);
     zend_string_release(key_file);
     zend_string_release(alpn);
@@ -226,7 +226,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   if (local_address != NULL) {
     if (php_quic_address_to_sockaddr(local_address, &local_addr,
                                      &local_addrlen) != SUCCESS) {
-      zend_throw_exception(zend_ce_exception, "localAddress is invalid", 0);
+      zend_throw_exception(zend_ce_exception, "ServerConnection::accept [address]: localAddress is invalid", 0);
       zend_string_release(cert_file);
       zend_string_release(key_file);
       zend_string_release(alpn);
@@ -236,7 +236,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
              Z_TYPE(initial_datagram->local_address) == IS_OBJECT) {
     if (php_quic_address_to_sockaddr(&initial_datagram->local_address,
                                      &local_addr, &local_addrlen) != SUCCESS) {
-      zend_throw_exception(zend_ce_exception, "Datagram.localAddress is invalid", 0);
+      zend_throw_exception(zend_ce_exception, "ServerConnection::accept [address]: Datagram.localAddress is invalid", 0);
       zend_string_release(cert_file);
       zend_string_release(key_file);
       zend_string_release(alpn);
@@ -244,7 +244,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     }
   } else if (php_quic_default_local_addr(remote_addr.ss_family, &local_addr,
                                          &local_addrlen) != SUCCESS) {
-    zend_throw_exception(zend_ce_exception, "failed to initialize local address", 0);
+    zend_throw_exception(zend_ce_exception, "ServerConnection::accept [address]: failed to initialize local address", 0);
     zend_string_release(cert_file);
     zend_string_release(key_file);
     zend_string_release(alpn);
@@ -281,7 +281,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     zend_string_release(alpn);
     zval_ptr_dtor(&server_zv);
     zend_throw_exception(zend_ce_exception,
-                         "failed to initialize server-side GnuTLS session", 0);
+                         "ServerConnection::accept [tls]: failed to initialize server-side GnuTLS session", 0);
     RETURN_THROWS();
   }
 
@@ -296,7 +296,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     zend_string_release(key_file);
     zend_string_release(alpn);
     zval_ptr_dtor(&server_zv);
-    zend_throw_exception(zend_ce_exception, "failed to generate server SCID", 0);
+    zend_throw_exception(zend_ce_exception, "ServerConnection::accept [cid]: failed to generate server SCID", 0);
     RETURN_THROWS();
   }
 
@@ -318,7 +318,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     zend_string_release(alpn);
     zval_ptr_dtor(&server_zv);
     zend_throw_exception(zend_ce_exception,
-                         "failed to generate stateless reset token", 0);
+                         "ServerConnection::accept [transport]: failed to generate stateless reset token", 0);
     RETURN_THROWS();
   }
   ngtcp2_cid_init(&params.original_dcid, vc.dcid, vc.dcidlen);
@@ -338,7 +338,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     zend_string_release(alpn);
     zval_ptr_dtor(&server_zv);
     zend_throw_exception_ex(zend_ce_exception, 0,
-                            "ngtcp2_conn_server_new failed: %s", ngtcp2_strerror(rv));
+                            "ServerConnection::accept [ngtcp2:new]: ngtcp2_conn_server_new failed: %s", ngtcp2_strerror(rv));
     RETURN_THROWS();
   }
 
@@ -353,7 +353,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     zend_string_release(alpn);
     zval_ptr_dtor(&server_zv);
     zend_throw_exception_ex(zend_ce_exception, 0,
-                            "ngtcp2_conn_read_pkt (initial) failed: %s",
+                            "ServerConnection::accept [ngtcp2:read_initial]: ngtcp2_conn_read_pkt (initial) failed: %s",
                             ngtcp2_strerror(rv));
     RETURN_THROWS();
   }

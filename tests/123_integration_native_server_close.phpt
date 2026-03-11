@@ -98,21 +98,13 @@ try {
     $deadline = microtime(true) + 10.0;
 
     while (microtime(true) < $deadline && !$clientClosedState) {
-        try {
-            foreach ($clientConn->flush() as $dgram) {
-                stream_socket_sendto($clientSock, $dgram->getPayload());
-            }
-        } catch (Throwable) {
-            // Client may enter draining/closing while processing server close.
+        foreach ($clientConn->flush() as $dgram) {
+            stream_socket_sendto($clientSock, $dgram->getPayload());
         }
 
         if ($serverConn instanceof ServerConnection) {
-            try {
-                foreach ($serverConn->flush() as $dgram) {
-                    stream_socket_sendto($serverSock, $dgram->getPayload(), 0, (string)$serverPeer);
-                }
-            } catch (Throwable) {
-                // Server may already be draining/closing.
+            foreach ($serverConn->flush() as $dgram) {
+                stream_socket_sendto($serverSock, $dgram->getPayload(), 0, (string)$serverPeer);
             }
         }
 
@@ -130,39 +122,17 @@ try {
                     'alpn' => 'h3',
                 ]);
             } else {
-                try {
-                    $serverConn->recv($dgram);
-                } catch (Throwable) {
-                    // Server may already be in closing state.
-                }
+                $serverConn->recv($dgram);
             }
         } elseif ($serverConn instanceof ServerConnection) {
-            try {
-                $serverConn->onTimeout();
-            } catch (Throwable) {
-                // Ignore timeout errors while closing.
-            }
+            $serverConn->onTimeout();
         }
 
         $cpkt = stream_socket_recvfrom($clientSock, 65535, 0, $peer2);
         if (is_string($cpkt) && $cpkt !== '') {
-            try {
-                $clientConn->recv(new Datagram($cpkt, $serverAddr));
-            } catch (Throwable) {
-                $clientClosedState = $clientConn->isClosed();
-                if ($clientClosedState) {
-                    $clientClosedEvent = true;
-                }
-            }
+            $clientConn->recv(new Datagram($cpkt, $serverAddr));
         } else {
-            try {
-                $clientConn->onTimeout();
-            } catch (Throwable) {
-                $clientClosedState = $clientConn->isClosed();
-                if ($clientClosedState) {
-                    $clientClosedEvent = true;
-                }
-            }
+            $clientConn->onTimeout();
         }
 
         foreach ($clientConn->pollEvents() as $event) {

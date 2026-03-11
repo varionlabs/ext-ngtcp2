@@ -28,7 +28,7 @@ NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/001_load_extension.
 Run server API PHPT tests:
 
 ```sh
-NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/015_server_connection_api.phpt tests/016_server_connection_accept_validation.phpt tests/017_server_connection_accept_client_initial.phpt tests/018_server_connection_accept_with_cert.phpt tests/019_server_connection_accept_options_validation.phpt tests/021_server_close_event.phpt'
+NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/015_server_connection_api.phpt tests/016_server_connection_accept_validation.phpt tests/017_server_connection_accept_client_initial.phpt tests/018_server_connection_accept_with_cert.phpt tests/019_server_connection_accept_options_validation.phpt tests/021_server_close_event.phpt tests/022_server_accept_error_stages.phpt'
 ```
 
 Run integration PHPT tests:
@@ -36,3 +36,11 @@ Run integration PHPT tests:
 ```sh
 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/100_integration_handshake.phpt tests/110_integration_stream_tx.phpt tests/120_integration_native_server_accept.phpt tests/121_integration_native_server_stream_readable.phpt tests/122_integration_native_server_stream_roundtrip.phpt tests/123_integration_native_server_close.phpt'
 ```
+
+## Server MVP coverage map
+
+- Exit criteria 1 (accept from Initial): `120_integration_native_server_accept.phpt`
+- Exit criteria 2 (handshake completion event): `120_integration_native_server_accept.phpt`
+- Exit criteria 3 (single bidi RX/TX): `121_integration_native_server_stream_readable.phpt`, `122_integration_native_server_stream_roundtrip.phpt`
+- Exit criteria 4 (close/draining observability): `021_server_close_event.phpt`, `123_integration_native_server_close.phpt`
+- Exit criteria 5 (UDP-enabled reproducibility): `120`-`123` are runnable in environments where UDP bind is available, otherwise intentionally `skip`
