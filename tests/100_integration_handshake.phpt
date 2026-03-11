@@ -14,7 +14,7 @@ if (!is_executable('/usr/bin/openssl')) {
     echo 'skip /usr/bin/openssl is not available';
     return;
 }
-$probe = @stream_socket_server('udp://127.0.0.1:0', $errno, $errstr);
+$probe = @stream_socket_server('udp://127.0.0.1:0', $errno, $errstr, STREAM_SERVER_BIND);
 if ($probe === false) {
     echo 'skip udp bind is not available in this environment';
     return;
