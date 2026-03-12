@@ -23,6 +23,7 @@ php examples/client_once.php --host=127.0.0.1 --port=4433 --path=/
 
 `client_minimal.php` demonstrates event-loop integration with
 `Connection::getNextExpiry()` (absolute UNIX epoch milliseconds).
+`server_minimal.php` also uses `ServerConnection::getNextExpiry()` to drive timer waits.
 
 Optional flags:
 

@@ -61,6 +61,11 @@ function parsePeerAddress(string $peer): Address
     return new Address(substr($peer, 0, $pos), (int)substr($peer, $pos + 1));
 }
 
+function nowMilliseconds(): int
+{
+    return (int) floor(microtime(true) * 1000);
+}
+
 $options = getopt('', ['host::', 'port::', 'cert::', 'key::', 'alpn::', 'help']);
 if ($options === false) {
     usage();
@@ -101,11 +106,21 @@ fwrite(STDERR, "native server waiting on {$host}:{$port}\n");
 
 $peer = null;
 while (true) {
+    $read = [$udp];
+    $write = null;
+    $except = null;
+    $n = stream_select($read, $write, $except, 0, 100000);
+    if ($n === false) {
+        throw new RuntimeException('stream_select failed');
+    }
+    if ($n === 0) {
+        continue;
+    }
+
     $packet = stream_socket_recvfrom($udp, 65535, 0, $peer);
     if (is_string($packet) && $packet !== '' && is_string($peer) && $peer !== '') {
         break;
     }
-    usleep(10000);
 }
 
 $remote = parsePeerAddress($peer);
@@ -124,13 +139,33 @@ foreach ($server->drainOutgoingDatagrams() as $outgoing) {
 }
 
 $deadline = microtime(true) + 10.0;
+$idlePollMs = 100;
 while (microtime(true) < $deadline && !$server->isClosed()) {
-    $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
-    if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
-        try {
-            $server->recv(new Datagram($packet, parsePeerAddress($from), $local));
-        } catch (Throwable $e) {
-            fwrite(STDERR, "recv warning: {$e->getMessage()}\n");
+    $timeoutAt = $server->getNextExpiry();
+    if ($timeoutAt === null) {
+        $timeoutMs = $idlePollMs;
+    } else {
+        $timeoutMs = max(0, $timeoutAt - nowMilliseconds());
+    }
+
+    $read = [$udp];
+    $write = null;
+    $except = null;
+    $sec = intdiv($timeoutMs, 1000);
+    $usec = ($timeoutMs % 1000) * 1000;
+    $n = stream_select($read, $write, $except, $sec, $usec);
+    if ($n === false) {
+        throw new RuntimeException('stream_select failed');
+    }
+
+    if ($n > 0) {
+        $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
+        if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
+            try {
+                $server->recv(new Datagram($packet, parsePeerAddress($from), $local));
+            } catch (Throwable $e) {
+                fwrite(STDERR, "recv warning: {$e->getMessage()}\n");
+            }
         }
     } else {
         try {
@@ -151,8 +186,6 @@ while (microtime(true) < $deadline && !$server->isClosed()) {
     foreach ($server->drainEvents() as $event) {
         fwrite(STDERR, get_class($event) . PHP_EOL);
     }
-
-    usleep(10000);
 }
 
 fclose($udp);
