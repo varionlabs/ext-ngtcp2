@@ -156,6 +156,12 @@ final class ServerEndpoint
   - invoke timer handling on all connections whose timeout is due (`<= 0` relative or `<= now` absolute).
   - apply cleanup after timer sweep.
 
+### Timeout representation note
+
+- Public deadline APIs are kept as epoch milliseconds (`?int`) for PHP userland ergonomics and easy multi-connection deadline merge.
+- Internal transport timing can remain monotonic.
+- See ADR: `docs/adr/0001-timeout-api-epoch-ms-vs-monotonic.md`.
+
 ## 5. Error / Exception Policy
 
 ### Error taxonomy (design baseline)

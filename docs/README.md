@@ -1,5 +1,10 @@
 # Planning Docs Index
 
+## Architecture Decisions
+
+- `adr/0001-timeout-api-epoch-ms-vs-monotonic.md`
+  - Why public timeout deadline APIs use epoch milliseconds
+
 ## Server-related
 
 - `server_mode_gap.md`

@@ -89,6 +89,12 @@ Timeout return semantics:
 - `null`: no next timer expiry (wait indefinitely)
 - `<= now`: timer handling should run immediately
 
+Design note:
+
+- Public deadline APIs use UNIX epoch milliseconds to keep PHP event-loop integration simple.
+- Internal transport timing remains monotonic.
+- Decision record: [`docs/adr/0001-timeout-api-epoch-ms-vs-monotonic.md`](docs/adr/0001-timeout-api-epoch-ms-vs-monotonic.md)
+
 Event subclasses are under:
 
 - `Varion\\Nghttp2\\Events\\HandshakeCompleted`
