@@ -84,6 +84,27 @@ function sendDatagram($udp, Datagram $datagram): void
     }
 }
 
+/**
+ * Read one datagram from a non-blocking UDP stream.
+ *
+ * PHP streams may emit warnings for expected "would block" races even after
+ * stream_select() reports readability. Handle that locally and return false.
+ */
+function recvDatagramNonBlocking($udp, ?string &$from): string|false
+{
+    set_error_handler(
+        static function (int $severity): bool {
+            return $severity === E_WARNING;
+        }
+    );
+
+    try {
+        return stream_socket_recvfrom($udp, 65535, 0, $from);
+    } finally {
+        restore_error_handler();
+    }
+}
+
 $options = getopt('', ['host::', 'port::', 'cert::', 'key::', 'alpn::', 'help']);
 if ($options === false) {
     usage();
@@ -153,7 +174,7 @@ while (true) {
     if ($n > 0) {
         // Drain all pending datagrams when the socket becomes readable.
         while (true) {
-            $packet = @stream_socket_recvfrom($udp, 65535, 0, $from);
+            $packet = recvDatagramNonBlocking($udp, $from);
             if ($packet === false) {
                 break;
             }
