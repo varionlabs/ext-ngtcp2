@@ -140,14 +140,21 @@ while (true) {
     }
 
     if ($n > 0) {
-        $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
-        if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
-            try {
-                $localName = stream_socket_get_name($udp, false);
-                $local = Address::fromString($localName === false ? "{$host}:{$port}" : $localName);
-                $endpoint->recv(new Datagram($packet, Address::fromString($from), $local));
-            } catch (Throwable $e) {
-                fwrite(STDERR, "endpoint recv warning: {$e->getMessage()}\n");
+        // Drain all pending datagrams when the socket becomes readable.
+        while (true) {
+            $packet = @stream_socket_recvfrom($udp, 65535, 0, $from);
+            if ($packet === false) {
+                break;
+            }
+
+            if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
+                try {
+                    $localName = stream_socket_get_name($udp, false);
+                    $local = Address::fromString($localName === false ? "{$host}:{$port}" : $localName);
+                    $endpoint->recv(new Datagram($packet, Address::fromString($from), $local));
+                } catch (Throwable $e) {
+                    fwrite(STDERR, "endpoint recv warning: {$e->getMessage()}\n");
+                }
             }
         }
     } else {
