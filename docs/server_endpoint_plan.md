@@ -199,6 +199,31 @@ final class ServerEndpoint
   - This indicates the current low-level behavior can still surface network-originated exceptions.
   - As a design task, exception granularity for `recv()` remains an explicit review item.
 
+### `recv()` exception boundary (explicit policy)
+
+Throw is acceptable for:
+
+- API misuse / contract violations
+  - wrong object/type usage
+  - invalid call sequencing assumptions
+- invalid configuration/setup states
+  - malformed `ServerConfig` or bootstrap prerequisites
+- internal invariants/bugs
+  - impossible ownership/mapping state
+
+Prefer non-throw handling for:
+
+- malformed or corrupted network packets
+- unexpected peer packets / unknown-but-ignorable input
+- protocol violations that should transition connection state to closing/draining
+- packets that can be safely ignored by policy
+
+Expected behavior direction:
+
+- `recv()` should prefer state transition over exception for network-originated failures.
+- If close is required, generate close datagrams via normal send drain path.
+- Notify userland via connection state/events (e.g., `ConnectionClosed`) rather than exception-per-packet.
+
 ### Connection close behavior
 
 - When packet handling implies close/draining:
