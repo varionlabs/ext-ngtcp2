@@ -177,4 +177,14 @@ while (true) {
         }
     }
     $active = array_values($active);
+
+    // Keep timer progression independent from receive frequency.
+    $dueAt = $endpoint->getNextExpiry();
+    if ($dueAt !== null && $dueAt <= nowMilliseconds()) {
+        try {
+            $endpoint->handleTimers();
+        } catch (Throwable $e) {
+            fwrite(STDERR, "endpoint timer warning: {$e->getMessage()}\n");
+        }
+    }
 }
