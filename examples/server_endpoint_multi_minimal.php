@@ -7,6 +7,10 @@ declare(strict_types=1);
  *
  * This example shows how to use ServerEndpoint for accept/routing/timer/outgoing
  * aggregation. It intentionally keeps application behavior minimal.
+ *
+ * Timing note:
+ * This example uses wall-clock milliseconds because deadline APIs are exposed as epoch ms.
+ * For production timer robustness, prefer monotonic scheduling where available.
  */
 
 use Varion\Ngtcp2\Address;
@@ -56,6 +60,9 @@ function ensureCertificate(string $certPath, string $keyPath, string $host): voi
 
 function nowMilliseconds(): int
 {
+    // Demo helper: use wall-clock epoch milliseconds for API consistency.
+    // In production, monotonic-clock-based scheduling is preferable, but this sample
+    // keeps wall time due to current PHP/userland integration constraints.
     return (int) floor(microtime(true) * 1000);
 }
 
@@ -128,6 +135,8 @@ while (true) {
     if ($timeoutAt === null) {
         $timeoutMs = $idlePollMs;
     } else {
+        // Convert absolute expiry (epoch ms) to relative wait for stream_select().
+        // This demo uses wall time; a monotonic clock source is recommended in real loops.
         $timeoutMs = max(0, $timeoutAt - nowMilliseconds());
     }
 
