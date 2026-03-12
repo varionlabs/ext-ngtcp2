@@ -14,15 +14,33 @@
 zend_class_entry *php_quic_stream_ce;
 static zend_object_handlers php_quic_stream_handlers;
 
-static php_quic_stream_entry *php_quic_stream_resolve_entry(php_quic_stream *stream) {
-  php_quic_connection *connection;
-
+static php_quic_connection *php_quic_stream_resolve_connection(
+  php_quic_stream *stream) {
   if (Z_ISUNDEF(stream->connection) || Z_TYPE(stream->connection) != IS_OBJECT) {
     return NULL;
   }
 
-  connection = Z_QUIC_CONNECTION_P(&stream->connection);
+  return Z_QUIC_CONNECTION_P(&stream->connection);
+}
+
+static php_quic_stream_entry *php_quic_stream_resolve_entry(php_quic_stream *stream) {
+  php_quic_connection *connection;
+
+  connection = php_quic_stream_resolve_connection(stream);
+  if (connection == NULL) {
+    return NULL;
+  }
+
   return php_quic_connection_get_stream_entry(connection, stream->stream_id);
+}
+
+static zend_bool php_quic_stream_is_remote_unidirectional(
+  php_quic_connection *connection, int64_t stream_id) {
+  if (connection == NULL || connection->conn == NULL || ngtcp2_is_bidi_stream(stream_id)) {
+    return 0;
+  }
+
+  return ngtcp2_conn_is_local_stream(connection->conn, stream_id) == 0;
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_stream_construct, 0, 0, 0)
@@ -94,6 +112,7 @@ PHP_METHOD(Ngtcp2_Stream, read) {
 
 PHP_METHOD(Ngtcp2_Stream, write) {
   php_quic_stream *stream = Z_QUIC_STREAM_P(ZEND_THIS);
+  php_quic_connection *connection;
   php_quic_stream_entry *entry;
   zend_string *data;
 
@@ -102,8 +121,15 @@ PHP_METHOD(Ngtcp2_Stream, write) {
   ZEND_PARSE_PARAMETERS_END();
 
   entry = php_quic_stream_resolve_entry(stream);
+  connection = php_quic_stream_resolve_connection(stream);
   if (entry == NULL) {
     zend_throw_exception(zend_ce_exception, "Stream entry does not exist", 0);
+    RETURN_THROWS();
+  }
+
+  if (php_quic_stream_is_remote_unidirectional(connection, stream->stream_id)) {
+    zend_throw_exception(zend_ce_exception,
+                         "Cannot write to a remote unidirectional stream", 0);
     RETURN_THROWS();
   }
 
@@ -119,6 +145,7 @@ PHP_METHOD(Ngtcp2_Stream, write) {
 
 PHP_METHOD(Ngtcp2_Stream, end) {
   php_quic_stream *stream = Z_QUIC_STREAM_P(ZEND_THIS);
+  php_quic_connection *connection;
   php_quic_stream_entry *entry;
   zend_string *final_data = NULL;
 
@@ -128,8 +155,15 @@ PHP_METHOD(Ngtcp2_Stream, end) {
   ZEND_PARSE_PARAMETERS_END();
 
   entry = php_quic_stream_resolve_entry(stream);
+  connection = php_quic_stream_resolve_connection(stream);
   if (entry == NULL) {
     zend_throw_exception(zend_ce_exception, "Stream entry does not exist", 0);
+    RETURN_THROWS();
+  }
+
+  if (php_quic_stream_is_remote_unidirectional(connection, stream->stream_id)) {
+    zend_throw_exception(zend_ce_exception,
+                         "Cannot end a remote unidirectional stream", 0);
     RETURN_THROWS();
   }
 

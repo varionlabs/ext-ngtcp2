@@ -55,10 +55,13 @@ static int php_quic_stream_open_cb(ngtcp2_conn *conn, int64_t stream_id,
                                    void *user_data) {
   php_quic_connection *connection = user_data;
   php_quic_stream_entry *entry;
-  (void)conn;
+  zend_bool local_stream;
+  zend_bool bidi_stream;
 
   entry = php_quic_connection_open_stream_entry(connection, stream_id);
-  entry->writable = 1;
+  local_stream = ngtcp2_conn_is_local_stream(conn, stream_id) != 0;
+  bidi_stream = ngtcp2_is_bidi_stream(stream_id) != 0;
+  entry->writable = local_stream || bidi_stream;
 
   php_quic_connection_push_event(connection, PHP_QUIC_EVENT_STREAM_OPENED, stream_id, 0, 1,
                                  NULL);

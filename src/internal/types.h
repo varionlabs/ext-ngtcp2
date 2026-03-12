@@ -69,7 +69,8 @@ typedef struct _php_quic_connection {
   zend_string *close_reason;
   HashTable streams;
   php_quic_event_queue events;
-  int64_t next_stream_id;
+  int64_t next_bidi_stream_id;
+  int64_t next_uni_stream_id;
   zend_bool established;
   zend_bool draining;
   zend_bool closed;

@@ -303,6 +303,45 @@ static void php_quic_connection_throw_ngtcp2_error(int rv, const char *context) 
                           ngtcp2_strerror(rv));
 }
 
+static void php_quic_connection_ensure_next_stream_id(
+  php_quic_connection *connection, zend_bool bidi) {
+  int64_t minimum_stream_id;
+  int64_t *next_stream_id;
+
+  if (connection->conn != NULL && ngtcp2_conn_is_server(connection->conn)) {
+    minimum_stream_id = bidi ? 1 : 3;
+  } else {
+    minimum_stream_id = bidi ? 0 : 2;
+  }
+
+  next_stream_id = bidi ? &connection->next_bidi_stream_id :
+                          &connection->next_uni_stream_id;
+
+  if (*next_stream_id < minimum_stream_id ||
+      ((*next_stream_id & 0x3) != (minimum_stream_id & 0x3))) {
+    *next_stream_id = minimum_stream_id;
+  }
+}
+
+static const char *php_quic_connection_open_context_for_stream_id(
+  int64_t stream_id) {
+  if (ngtcp2_is_bidi_stream(stream_id)) {
+    return "ngtcp2_conn_open_bidi_stream";
+  }
+
+  return "ngtcp2_conn_open_uni_stream";
+}
+
+static int php_quic_connection_open_pending_stream(php_quic_connection *connection,
+                                                   int64_t stream_id,
+                                                   int64_t *opened_stream_id) {
+  if (ngtcp2_is_bidi_stream(stream_id)) {
+    return ngtcp2_conn_open_bidi_stream(connection->conn, opened_stream_id, NULL);
+  }
+
+  return ngtcp2_conn_open_uni_stream(connection->conn, opened_stream_id, NULL);
+}
+
 php_quic_stream_entry *php_quic_connection_get_stream_entry(
   php_quic_connection *connection, int64_t stream_id) {
   zval *zv;
@@ -356,6 +395,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_flush, 0, 0, IS_ARRAY
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_connection_open_stream, 0, 0,
+                                       Varion\\Ngtcp2\\Stream, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_connection_open_uni_stream, 0, 0,
                                        Varion\\Ngtcp2\\Stream, 0)
 ZEND_END_ARG_INFO()
 
@@ -687,8 +730,12 @@ PHP_METHOD(Ngtcp2_Connection, flush) {
     if (entry != NULL && entry->pending_open) {
       int64_t opened_stream_id = -1;
       int open_rv;
+      const char *open_context =
+        php_quic_connection_open_context_for_stream_id(entry->stream_id);
 
-      open_rv = ngtcp2_conn_open_bidi_stream(connection->conn, &opened_stream_id, NULL);
+      open_rv = php_quic_connection_open_pending_stream(connection,
+                                                        entry->stream_id,
+                                                        &opened_stream_id);
       if (open_rv == 0) {
         if (opened_stream_id != entry->stream_id) {
           zend_throw_exception_ex(zend_ce_exception, 0,
@@ -706,7 +753,7 @@ PHP_METHOD(Ngtcp2_Connection, flush) {
         datavcnt = 0;
         fin = 0;
       } else {
-        php_quic_connection_throw_ngtcp2_error(open_rv, "ngtcp2_conn_open_bidi_stream");
+        php_quic_connection_throw_ngtcp2_error(open_rv, open_context);
         RETURN_THROWS();
       }
     }
@@ -795,17 +842,58 @@ PHP_METHOD(Ngtcp2_Connection, openStream) {
     RETURN_THROWS();
   }
 
+  php_quic_connection_ensure_next_stream_id(connection, 1);
+
   if (rv == NGTCP2_ERR_STREAM_ID_BLOCKED) {
-    stream_id = connection->next_stream_id;
-    connection->next_stream_id += 4;
-  } else if (stream_id >= connection->next_stream_id) {
-    connection->next_stream_id = stream_id + 4;
+    stream_id = connection->next_bidi_stream_id;
+    connection->next_bidi_stream_id += 4;
+  } else if (stream_id >= connection->next_bidi_stream_id) {
+    connection->next_bidi_stream_id = stream_id + 4;
   }
 
   entry = php_quic_connection_open_stream_entry(connection, stream_id);
-  if (rv == NGTCP2_ERR_STREAM_ID_BLOCKED) {
-    entry->pending_open = 1;
+  entry->pending_open = rv == NGTCP2_ERR_STREAM_ID_BLOCKED;
+  entry->writable = 1;
+
+  php_quic_connection_push_event(connection, PHP_QUIC_EVENT_STREAM_OPENED,
+                                 stream_id, 0, 0, NULL);
+  php_quic_connection_push_event(connection, PHP_QUIC_EVENT_STREAM_WRITABLE,
+                                 stream_id, 0, 0, NULL);
+
+  php_quic_stream_create(return_value, ZEND_THIS, stream_id);
+}
+
+PHP_METHOD(Ngtcp2_Connection, openUniStream) {
+  php_quic_connection *connection;
+  php_quic_stream_entry *entry;
+  int64_t stream_id;
+  int rv;
+
+  ZEND_PARSE_PARAMETERS_NONE();
+
+  connection = Z_QUIC_CONNECTION_P(ZEND_THIS);
+  if (connection->conn == NULL || connection->closed) {
+    zend_throw_exception(zend_ce_exception, "Connection is closed", 0);
+    RETURN_THROWS();
   }
+
+  rv = ngtcp2_conn_open_uni_stream(connection->conn, &stream_id, NULL);
+  if (rv != 0 && rv != NGTCP2_ERR_STREAM_ID_BLOCKED) {
+    php_quic_connection_throw_ngtcp2_error(rv, "ngtcp2_conn_open_uni_stream");
+    RETURN_THROWS();
+  }
+
+  php_quic_connection_ensure_next_stream_id(connection, 0);
+
+  if (rv == NGTCP2_ERR_STREAM_ID_BLOCKED) {
+    stream_id = connection->next_uni_stream_id;
+    connection->next_uni_stream_id += 4;
+  } else if (stream_id >= connection->next_uni_stream_id) {
+    connection->next_uni_stream_id = stream_id + 4;
+  }
+
+  entry = php_quic_connection_open_stream_entry(connection, stream_id);
+  entry->pending_open = rv == NGTCP2_ERR_STREAM_ID_BLOCKED;
   entry->writable = 1;
 
   php_quic_connection_push_event(connection, PHP_QUIC_EVENT_STREAM_OPENED,
@@ -904,6 +992,8 @@ static const zend_function_entry php_quic_connection_methods[] = {
   PHP_ME(Ngtcp2_Connection, pollEvents, arginfo_connection_poll_events, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, flush, arginfo_connection_flush, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, openStream, arginfo_connection_open_stream, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, openUniStream, arginfo_connection_open_uni_stream,
+         ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, getStream, arginfo_connection_get_stream, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, close, arginfo_connection_close, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, isEstablished, arginfo_connection_is_established, ZEND_ACC_PUBLIC)
@@ -927,7 +1017,8 @@ static zend_object *php_quic_connection_create_object(zend_class_entry *ce) {
   ZVAL_UNDEF(&connection->remote_address_zv);
   ZVAL_UNDEF(&connection->local_address_zv);
   connection->close_reason = NULL;
-  connection->next_stream_id = 0;
+  connection->next_bidi_stream_id = 0;
+  connection->next_uni_stream_id = 2;
   connection->established = 0;
   connection->draining = 0;
   connection->closed = 0;
