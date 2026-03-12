@@ -45,10 +45,10 @@ php examples/server_gtlsserver_minimal.php --host=127.0.0.1 --port=4433
 To test stream read/write behavior on the same connection, use the echo variant:
 
 ```sh
-php examples/server_native_echo.php --host=127.0.0.1 --port=4433 --alpn=h3 --prefix='echo: '
+php examples/server_echo.php --host=127.0.0.1 --port=4433 --alpn=h3 --prefix='echo: '
 ```
 
-`server_minimal.php` / `server_native_echo.php` print `recv warning:`,
+`server_minimal.php` / `server_echo.php` print `recv warning:`,
 `timeout warning:`, and `drainOutgoingDatagrams warning:` during close/draining transitions.
 These warnings are expected in the current MVP path and are non-fatal.
 
