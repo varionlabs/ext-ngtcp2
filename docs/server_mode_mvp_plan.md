@@ -18,7 +18,7 @@ Enable one accepted QUIC server connection with:
 Use a dedicated class to avoid constructor ambiguity:
 
 - `Varion\Ngtcp2\ServerConnection`
-- `ServerConnection::accept(Datagram $initial, ?Address $localAddress = null, ?array $options = null): ServerConnection`
+- `ServerConnection::accept(Datagram $initial, ServerConfig $config): ServerConnection`
 
 Why:
 
@@ -82,7 +82,7 @@ Implemented:
 - `ServerConnection::accept(...)` with `ngtcp2_conn_server_new` path
 - handshake event progression and stream RX/TX path
 - server close propagation integration (`tests/123`)
-- `accept` stage-based error prefixes (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:new]`, `[ngtcp2:read_initial]`)
+- `accept` stage-based error prefixes (`[decode]`, `[config]`, `[tls]`, `[ngtcp2:new]`, `[ngtcp2:read_initial]`)
 - deterministic test hook for `[ngtcp2:new]` (`NGTCP2_TEST_FORCE_SERVER_NEW_FAILURE=1`, `tests/025`)
 
 Remaining:

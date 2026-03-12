@@ -41,7 +41,7 @@ Already aligned or partially reusable:
 Option A (new class):
 
 - `Varion\Ngtcp2\ServerConnection`
-- static factory for first packet context, e.g. `ServerConnection::accept(Datagram $initial)`
+- static factory for first packet context, e.g. `ServerConnection::accept(Datagram $initial, ServerConfig $config)`
 
 Option B (factory on current class):
 

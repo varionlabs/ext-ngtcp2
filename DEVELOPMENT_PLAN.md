@@ -296,7 +296,7 @@ mock 方針:
 - close/draining 期間の `recv()/drainOutgoingDatagrams()/onTimeout()` で `ERR_CLOSING` / `ERR_DRAINING` を
   非致命扱いに統一し、イベントループの継続性を改善。
 - `ServerConnection::accept()` の失敗メッセージを段階別プレフィックス
-  (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:new]` など) へ整理。
+  (`[decode]`, `[config]`, `[tls]`, `[ngtcp2:new]` など) へ整理。
 - `tests/README.md` に Server MVP Exit criteria とテストケースの対応表を追加。
 - `tests/023_server_accept_tls_error_stage.phpt` と
   `tests/024_server_accept_read_initial_error_stage.phpt` を追加し、

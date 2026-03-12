@@ -11,6 +11,7 @@ if (!extension_loaded('ngtcp2')) {
 
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
+use Varion\Ngtcp2\ServerConfig;
 use Varion\Ngtcp2\ServerConnection;
 
 $client = new Connection(new Address('127.0.0.1', 4433));
@@ -20,11 +21,12 @@ if ($initial === null) {
 }
 
 try {
-    @ServerConnection::accept($initial, null, [
-        'certFile' => '/tmp/does-not-exist-server.crt',
-        'keyFile' => '/tmp/does-not-exist-server.key',
-        'alpn' => 'h3',
-    ]);
+    @ServerConnection::accept(
+        $initial,
+        (new ServerConfig())
+            ->withCertificate('/tmp/does-not-exist-server.crt', '/tmp/does-not-exist-server.key')
+            ->withAlpn('h3')
+    );
     echo "no-exception\n";
 } catch (Throwable $e) {
     var_dump(str_contains($e->getMessage(), 'ServerConnection::accept [tls]'));

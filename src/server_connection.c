@@ -102,41 +102,6 @@ static int php_quic_default_local_addr(int family, struct sockaddr_storage *stor
   return SUCCESS;
 }
 
-static zend_string *php_quic_get_required_string_option(HashTable *options,
-                                                        const char *name) {
-  zval *zv;
-
-  zv = zend_hash_str_find(options, name, strlen(name));
-  if (zv == NULL || Z_TYPE_P(zv) != IS_STRING || Z_STRLEN_P(zv) == 0) {
-    zend_throw_exception_ex(zend_ce_exception, 0,
-                            "ServerConnection::accept [options]: options['%s'] must be a non-empty string",
-                            name);
-    return NULL;
-  }
-
-  return zend_string_copy(Z_STR_P(zv));
-}
-
-static zend_string *php_quic_get_optional_string_option(HashTable *options,
-                                                        const char *name,
-                                                        const char *fallback) {
-  zval *zv;
-
-  zv = zend_hash_str_find(options, name, strlen(name));
-  if (zv == NULL) {
-    return zend_string_init(fallback, strlen(fallback), 0);
-  }
-
-  if (Z_TYPE_P(zv) != IS_STRING || Z_STRLEN_P(zv) == 0) {
-    zend_throw_exception_ex(zend_ce_exception, 0,
-                            "ServerConnection::accept [options]: options['%s'] must be a non-empty string",
-                            name);
-    return NULL;
-  }
-
-  return zend_string_copy(Z_STR_P(zv));
-}
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_server_connection_construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -178,11 +143,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_server_config_get_alpn, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_server_connection_accept, 0, 1,
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_server_connection_accept, 0, 2,
                                        Varion\\Ngtcp2\\ServerConnection, 0)
   ZEND_ARG_OBJ_INFO(0, initial, Varion\\Ngtcp2\\Datagram, 0)
-  ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, configOrLocalAddress, "null")
-  ZEND_ARG_ARRAY_INFO(0, options, 1)
+  ZEND_ARG_OBJ_INFO(0, config, Varion\\Ngtcp2\\ServerConfig, 0)
 ZEND_END_ARG_INFO()
 
 PHP_METHOD(Ngtcp2_ServerConfig, __construct) {
@@ -383,11 +347,9 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   php_quic_connection *connection;
   php_quic_datagram *initial_datagram;
   zval *initial;
-  zval *config_or_local = NULL;
-  zval *legacy_options = NULL;
+  zval *config_zv;
   zval *effective_local_address = NULL;
   php_quic_server_config *server_config = NULL;
-  HashTable *options_ht = NULL;
   zval server_zv;
   zend_string *cert_file = NULL;
   zend_string *key_file = NULL;
@@ -406,64 +368,28 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   socklen_t local_addrlen;
   int rv;
 
-  ZEND_PARSE_PARAMETERS_START(1, 3)
+  ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_OBJECT_OF_CLASS(initial, php_quic_datagram_ce)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_ZVAL(config_or_local)
-    Z_PARAM_ARRAY_OR_NULL(legacy_options)
+    Z_PARAM_OBJECT_OF_CLASS(config_zv, php_quic_server_config_ce)
   ZEND_PARSE_PARAMETERS_END();
 
-  if (config_or_local != NULL && Z_TYPE_P(config_or_local) == IS_OBJECT &&
-      instanceof_function(Z_OBJCE_P(config_or_local), php_quic_server_config_ce)) {
-    if (legacy_options != NULL) {
-      zend_argument_value_error(3,
-                                "must not be provided when second argument is ServerConfig");
-      RETURN_THROWS();
-    }
-    server_config = Z_QUIC_SERVER_CONFIG_P(config_or_local);
-    if (Z_TYPE(server_config->local_address) == IS_OBJECT) {
-      effective_local_address = &server_config->local_address;
-    }
-    if (server_config->cert_file == NULL || server_config->key_file == NULL) {
-      zend_throw_exception(
-        zend_ce_exception,
-        "ServerConnection::accept [config]: ServerConfig.certFile and ServerConfig.keyFile are required",
-        0);
-      RETURN_THROWS();
-    }
-    cert_file = zend_string_copy(server_config->cert_file);
-    key_file = zend_string_copy(server_config->key_file);
-    if (server_config->alpn != NULL) {
-      alpn = zend_string_copy(server_config->alpn);
-    } else {
-      alpn = zend_string_init("hq-interop", sizeof("hq-interop") - 1, 0);
-    }
+  server_config = Z_QUIC_SERVER_CONFIG_P(config_zv);
+  if (Z_TYPE(server_config->local_address) == IS_OBJECT) {
+    effective_local_address = &server_config->local_address;
+  }
+  if (server_config->cert_file == NULL || server_config->key_file == NULL) {
+    zend_throw_exception(
+      zend_ce_exception,
+      "ServerConnection::accept [config]: ServerConfig.certFile and ServerConfig.keyFile are required",
+      0);
+    RETURN_THROWS();
+  }
+  cert_file = zend_string_copy(server_config->cert_file);
+  key_file = zend_string_copy(server_config->key_file);
+  if (server_config->alpn != NULL) {
+    alpn = zend_string_copy(server_config->alpn);
   } else {
-    if (config_or_local != NULL && Z_TYPE_P(config_or_local) == IS_OBJECT) {
-      if (!instanceof_function(Z_OBJCE_P(config_or_local), php_quic_address_ce)) {
-        zend_type_error("ServerConnection::accept(): Argument #2 ($configOrLocalAddress) "
-                        "must be of type ?Varion\\Ngtcp2\\ServerConfig, ?Varion\\Ngtcp2\\Address, ?array");
-        RETURN_THROWS();
-      }
-      effective_local_address = config_or_local;
-    }
-
-    if (config_or_local != NULL && Z_TYPE_P(config_or_local) == IS_ARRAY) {
-      if (legacy_options != NULL) {
-        zend_argument_value_error(3, "must not be provided when second argument is options array");
-        RETURN_THROWS();
-      }
-      options_ht = Z_ARRVAL_P(config_or_local);
-    } else {
-      if (legacy_options == NULL || Z_TYPE_P(legacy_options) != IS_ARRAY) {
-        zend_throw_exception(
-          zend_ce_exception,
-          "ServerConnection::accept [options]: requires options array with certFile and keyFile",
-          0);
-        RETURN_THROWS();
-      }
-      options_ht = Z_ARRVAL_P(legacy_options);
-    }
+    alpn = zend_string_init("hq-interop", sizeof("hq-interop") - 1, 0);
   }
 
   initial_datagram = Z_QUIC_DATAGRAM_P(initial);
@@ -496,26 +422,6 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     zend_throw_exception(zend_ce_exception,
                          "ServerConnection::accept [decode]: initial datagram has unsupported CID length", 0);
     RETURN_THROWS();
-  }
-
-  if (cert_file == NULL || key_file == NULL || alpn == NULL) {
-    cert_file = php_quic_get_required_string_option(options_ht, "certFile");
-    if (cert_file == NULL) {
-      RETURN_THROWS();
-    }
-
-    key_file = php_quic_get_required_string_option(options_ht, "keyFile");
-    if (key_file == NULL) {
-      zend_string_release(cert_file);
-      RETURN_THROWS();
-    }
-
-    alpn = php_quic_get_optional_string_option(options_ht, "alpn", "hq-interop");
-    if (alpn == NULL) {
-      zend_string_release(cert_file);
-      zend_string_release(key_file);
-      RETURN_THROWS();
-    }
   }
 
   if (php_quic_address_to_sockaddr(&initial_datagram->peer_address, &remote_addr,

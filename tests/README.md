@@ -44,4 +44,4 @@ NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/100_integration_han
 - Exit criteria 3 (single bidi RX/TX): `121_integration_native_server_stream_readable.phpt`, `122_integration_native_server_stream_roundtrip.phpt`
 - Exit criteria 4 (close/draining observability): `021_server_close_event.phpt`, `123_integration_native_server_close.phpt`
 - Exit criteria 5 (UDP-enabled reproducibility): `120`-`123` are runnable in environments where UDP bind is available, otherwise intentionally `skip`
-- Error stage mapping (`accept`): `[decode]/[options]` by `022`, `[tls]` by `023`, `[ngtcp2:read_initial]` by `024`, `[ngtcp2:new]` by `025` (test env: `NGTCP2_TEST_FORCE_SERVER_NEW_FAILURE=1`)
+- Error stage mapping (`accept`): `[decode]/[config]` by `022`, `[tls]` by `023`, `[ngtcp2:read_initial]` by `024`, `[ngtcp2:new]` by `025` (test env: `NGTCP2_TEST_FORCE_SERVER_NEW_FAILURE=1`)

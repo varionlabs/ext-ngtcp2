@@ -17,6 +17,7 @@ if (!is_executable('/usr/bin/openssl')) {
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
 use Varion\Nghttp2\Events\ConnectionClosed;
+use Varion\Ngtcp2\ServerConfig;
 use Varion\Ngtcp2\ServerConnection;
 
 $dir = sys_get_temp_dir() . '/ngtcp2-srv-' . bin2hex(random_bytes(4));
@@ -44,11 +45,12 @@ try {
         throw new RuntimeException('failed to produce initial packet');
     }
 
-    $server = ServerConnection::accept($initial, null, [
-        'certFile' => $cert,
-        'keyFile' => $key,
-        'alpn' => 'h3',
-    ]);
+    $server = ServerConnection::accept(
+        $initial,
+        (new ServerConfig())
+            ->withCertificate($cert, $key)
+            ->withAlpn('h3')
+    );
 
     var_dump($server->isClosed());
     $server->close(123, 'server-shutdown');

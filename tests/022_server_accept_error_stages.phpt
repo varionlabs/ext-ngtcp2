@@ -12,10 +12,14 @@ if (!extension_loaded('ngtcp2')) {
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\Datagram;
+use Varion\Ngtcp2\ServerConfig;
 use Varion\Ngtcp2\ServerConnection;
 
 try {
-    ServerConnection::accept(new Datagram('x', new Address('127.0.0.1', 4433)));
+    ServerConnection::accept(
+        new Datagram('x', new Address('127.0.0.1', 4433)),
+        (new ServerConfig())->withCertificate('/tmp/nope.crt', '/tmp/nope.key')
+    );
     echo "no-exception\n";
 } catch (Throwable $e) {
     var_dump(str_contains($e->getMessage(), 'ServerConnection::accept [decode]'));
@@ -30,12 +34,11 @@ try {
 
     ServerConnection::accept(
         $initial,
-        null,
-        ['keyFile' => '/tmp/nope.key']
+        new ServerConfig()
     );
     echo "no-exception\n";
 } catch (Throwable $e) {
-    var_dump(str_contains($e->getMessage(), 'ServerConnection::accept [options]'));
+    var_dump(str_contains($e->getMessage(), 'ServerConnection::accept [config]'));
 }
 ?>
 --EXPECT--

@@ -17,6 +17,7 @@ if (!is_executable('/usr/bin/openssl')) {
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\Datagram;
+use Varion\Ngtcp2\ServerConfig;
 use Varion\Ngtcp2\ServerConnection;
 
 $dir = sys_get_temp_dir() . '/ngtcp2-srv-' . bin2hex(random_bytes(4));
@@ -61,11 +62,12 @@ try {
     );
 
     try {
-        ServerConnection::accept($corrupted, null, [
-            'certFile' => $cert,
-            'keyFile' => $key,
-            'alpn' => 'h3',
-        ]);
+        ServerConnection::accept(
+            $corrupted,
+            (new ServerConfig())
+                ->withCertificate($cert, $key)
+                ->withAlpn('h3')
+        );
         echo "no-exception\n";
     } catch (Throwable $e) {
         var_dump(str_contains($e->getMessage(), 'ServerConnection::accept [ngtcp2:read_initial]'));
