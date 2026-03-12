@@ -4,6 +4,7 @@
 #include "php.h"
 
 extern zend_class_entry *php_quic_server_connection_ce;
+extern zend_class_entry *php_quic_server_config_ce;
 
 int php_ngtcp2_server_connection_init(INIT_FUNC_ARGS);
 

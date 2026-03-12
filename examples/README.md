@@ -55,3 +55,14 @@ php examples/server_echo.php --host=127.0.0.1 --port=4433 --alpn=h3 --prefix='ec
 These warnings are expected in the current MVP path and are non-fatal.
 
 This is still an MVP path and not feature-complete server mode.
+
+## Multi-connection endpoint demo
+
+`ServerEndpoint` keeps Sans-I/O semantics while aggregating accept/routing/timer/outgoing:
+
+```sh
+php examples/server_endpoint_multi_minimal.php --host=127.0.0.1 --port=4433 --alpn=h3
+```
+
+This sample is an implementation-start demo: routing is intentionally minimal and
+aimed at API exploration for multi-connection loops.

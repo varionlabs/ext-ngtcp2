@@ -20,7 +20,7 @@
 #include "internal/tls.h"
 
 zend_class_entry *php_quic_server_connection_ce;
-static zend_class_entry *php_quic_server_config_ce;
+zend_class_entry *php_quic_server_config_ce;
 static zend_object_handlers php_quic_server_config_handlers;
 
 static ngtcp2_tstamp php_quic_timestamp(void) {

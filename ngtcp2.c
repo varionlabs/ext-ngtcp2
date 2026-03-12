@@ -12,6 +12,7 @@
 #include "src/internal/datagram.h"
 #include "src/internal/event.h"
 #include "src/internal/server_connection.h"
+#include "src/internal/server_endpoint.h"
 #include "src/internal/stream.h"
 
 PHP_MINIT_FUNCTION(ngtcp2);
@@ -65,6 +66,10 @@ PHP_MINIT_FUNCTION(ngtcp2) {
   }
 
   if (php_ngtcp2_server_connection_init(INIT_FUNC_ARGS_PASSTHRU) != SUCCESS) {
+    return FAILURE;
+  }
+
+  if (php_ngtcp2_server_endpoint_init(INIT_FUNC_ARGS_PASSTHRU) != SUCCESS) {
     return FAILURE;
   }
 

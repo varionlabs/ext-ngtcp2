@@ -31,4 +31,8 @@
   ((php_quic_event_object *)((char *)Z_OBJ_P((zv)) -                            \
                              XtOffsetOf(php_quic_event_object, std)))
 
+#define Z_QUIC_SERVER_ENDPOINT_P(zv)                                             \
+  ((php_quic_server_endpoint *)((char *)Z_OBJ_P((zv)) -                          \
+                                XtOffsetOf(php_quic_server_endpoint, std)))
+
 #endif /* PHP_NGTCP2_MACROS_H */

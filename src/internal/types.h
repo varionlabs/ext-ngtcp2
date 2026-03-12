@@ -129,4 +129,11 @@ typedef struct _php_quic_event_object {
   zend_object std;
 } php_quic_event_object;
 
+typedef struct _php_quic_server_endpoint {
+  zval config;
+  zval accepted_queue;
+  HashTable connections;
+  zend_object std;
+} php_quic_server_endpoint;
+
 #endif /* PHP_NGTCP2_TYPES_H */
