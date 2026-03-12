@@ -8,20 +8,6 @@ use Varion\Ngtcp2\Datagram;
 use Varion\Nghttp2\Events\HandshakeCompleted;
 use Varion\Nghttp2\Events\StreamReadable;
 
-function parsePeerAddress(string $peer): Address
-{
-    if (preg_match('/^\[(.+)\]:(\d+)$/', $peer, $m) === 1) {
-        return new Address($m[1], (int)$m[2]);
-    }
-
-    $pos = strrpos($peer, ':');
-    if ($pos === false) {
-        throw new RuntimeException("cannot parse peer address: {$peer}");
-    }
-
-    return new Address(substr($peer, 0, $pos), (int)substr($peer, $pos + 1));
-}
-
 $remote = new Address('127.0.0.1', 4433);
 $connection = new Connection($remote);
 $stream = null;
@@ -45,7 +31,7 @@ while (!$connection->isClosed()) {
     if ($n > 0) {
         $packet = stream_socket_recvfrom($udp, 65535, 0, $peer);
         if (is_string($packet) && $packet !== '') {
-            $peerAddress = is_string($peer) && $peer !== '' ? parsePeerAddress($peer) : $remote;
+            $peerAddress = is_string($peer) && $peer !== '' ? Address::fromString($peer) : $remote;
             $connection->recv(new Datagram($packet, $peerAddress));
         }
     } else {
