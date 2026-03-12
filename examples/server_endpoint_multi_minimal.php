@@ -70,9 +70,11 @@ function sendDatagram($udp, Datagram $datagram): void
 {
     // This sample binds one UDP socket, so destination is selected by peer only.
     // `Datagram::getLocalAddress()` is intentionally unused here.
+    $payload = $datagram->getPayload();
+    $length = strlen($payload);
     $sent = stream_socket_sendto(
         $udp,
-        $datagram->getPayload(),
+        $payload,
         0,
         (string)$datagram->getPeerAddress()
     );
@@ -80,6 +82,14 @@ function sendDatagram($udp, Datagram $datagram): void
         fwrite(
             STDERR,
             "send warning: failed to send datagram to " . (string)$datagram->getPeerAddress() . PHP_EOL
+        );
+        return;
+    }
+
+    if ($sent !== $length) {
+        fwrite(
+            STDERR,
+            "send warning: short write {$sent}/{$length} to " . (string)$datagram->getPeerAddress() . PHP_EOL
         );
     }
 }
