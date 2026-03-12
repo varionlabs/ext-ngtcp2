@@ -188,6 +188,10 @@ final class ServerEndpoint
   - network weirdness -> state transition / drop / metric (non-throw)
   - programmer misuse or invariant break -> throw
 - Operational goal: avoid exception-per-packet behavior under hostile/noisy traffic.
+- Current status note:
+  - Existing server examples still wrap `recv()` in broad `try/catch`.
+  - This indicates the current low-level behavior can still surface network-originated exceptions.
+  - As a design task, exception granularity for `recv()` remains an explicit review item.
 
 ### Connection close behavior
 
@@ -204,6 +208,9 @@ final class ServerEndpoint
   - add endpoint-level observability surface:
     - counters (`accepted_total`, `unknown_cid_drops`, `route_hits`, `route_misses`, `recv_drop_malformed`)
     - optional lightweight `drainEndpointEvents(): array` for operational events.
+  - event taxonomy review:
+    - keep public events user-meaningful (not internal implementation-only notifications)
+    - document criteria for new event types before adding them
 
 ## 6. Staged Release Plan
 
@@ -295,6 +302,14 @@ Exit criteria:
 - Should `drainOutgoingDatagrams()` expose source connection metadata for debugging?
 - What default caps should be applied (active connections, per-drain datagrams)?
 - Should endpoint provide explicit `closeAll()`/`shutdown()` API in MVP?
+- How should low-level `ServerConnection::recv()` classify ngtcp2 errors into:
+  - throw (misuse/config/internal bug)
+  - non-throw state transition (protocol/transport close)
+  - silent drop / metric (ignorable network input)?
+- Event surface design scope:
+  - Which event classes are stable and user-actionable enough for long-term API (`HandshakeCompleted`, `ConnectionClosed`, `StreamReadable`, etc.)?
+  - Should candidates like `DatagramReceived` / `TlsAlertReceived` be first-class events or represented via state/metrics?
+  - How to prevent drift into internal-only event leakage while keeping observability practical?
 
 ## File-Level Implementation Outline (for future coding phase)
 
