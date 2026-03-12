@@ -195,8 +195,8 @@ final class ServerEndpoint
   - programmer misuse or invariant break -> throw
 - Operational goal: avoid exception-per-packet behavior under hostile/noisy traffic.
 - Current status note:
-  - Existing server examples still wrap `recv()` in broad `try/catch`.
-  - This indicates the current low-level behavior can still surface network-originated exceptions.
+  - Existing server examples still treat transport/runtime errors as warnings for loop continuity.
+  - Sample code now rethrows `LogicException|Error` and only warns on other `Throwable`.
   - As a design task, exception granularity for `recv()` remains an explicit review item.
 
 ### `recv()` exception boundary (explicit policy)
@@ -223,6 +223,14 @@ Expected behavior direction:
 - `recv()` should prefer state transition over exception for network-originated failures.
 - If close is required, generate close datagrams via normal send drain path.
 - Notify userland via connection state/events (e.g., `ConnectionClosed`) rather than exception-per-packet.
+
+### Sample-loop exception handling guidance
+
+- In sample loops, use this temporary boundary until dedicated exception classes are introduced:
+  - rethrow `LogicException|Error` (misuse/invariant issues)
+  - log-and-continue for other runtime `Throwable` in `recv()` / timer handling
+- This keeps examples resilient to noisy network input without hiding programming mistakes.
+- Long-term target: replace generic `Throwable` handling with explicit transport exception taxonomy.
 
 ### Connection close behavior
 

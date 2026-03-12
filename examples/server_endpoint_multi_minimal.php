@@ -154,6 +154,8 @@ while (true) {
                     $localName = stream_socket_get_name($udp, false);
                     $local = Address::fromString($localName === false ? "{$host}:{$port}" : $localName);
                     $endpoint->recv(new Datagram($packet, Address::fromString($from), $local));
+                } catch (LogicException|Error $e) {
+                    throw $e;
                 } catch (Throwable $e) {
                     fwrite(STDERR, "endpoint recv warning: {$e->getMessage()}\n");
                 }
@@ -162,6 +164,8 @@ while (true) {
     } else {
         try {
             $endpoint->handleTimers();
+        } catch (LogicException|Error $e) {
+            throw $e;
         } catch (Throwable $e) {
             fwrite(STDERR, "endpoint timer warning: {$e->getMessage()}\n");
         }
@@ -197,6 +201,8 @@ while (true) {
     if ($dueAt !== null && $dueAt <= nowMilliseconds()) {
         try {
             $endpoint->handleTimers();
+        } catch (LogicException|Error $e) {
+            throw $e;
         } catch (Throwable $e) {
             fwrite(STDERR, "endpoint timer warning: {$e->getMessage()}\n");
         }
