@@ -27,6 +27,7 @@ use Varion\Ngtcp2\Connection;
 use Varion\Nghttp2\Events\ConnectionClosed;
 use Varion\Ngtcp2\Datagram;
 use Varion\Nghttp2\Events\HandshakeCompleted;
+use Varion\Ngtcp2\ServerConfig;
 use Varion\Ngtcp2\ServerConnection;
 
 function parseAddr(string $peer): Address
@@ -116,16 +117,17 @@ try {
             $dgram = new Datagram($packet, $remote, $local);
 
             if (!$serverConn instanceof ServerConnection) {
-                $serverConn = ServerConnection::accept($dgram, $local, [
-                    'certFile' => $cert,
-                    'keyFile' => $key,
-                    'alpn' => 'h3',
-                ]);
+                $serverConn = ServerConnection::accept(
+                    $dgram,
+                    (new ServerConfig())
+                        ->withCertificate($cert, $key)
+                        ->withAlpn('h3')
+                );
             } else {
                 $serverConn->recv($dgram);
             }
         } elseif ($serverConn instanceof ServerConnection) {
-            $serverConn->onTimeout();
+            $serverConn->handleTimers();
         }
 
         $cpkt = stream_socket_recvfrom($clientSock, 65535, 0, $peer2);
@@ -133,7 +135,7 @@ try {
             $peerAddr = is_string($peer2) && $peer2 !== '' ? parseAddr($peer2) : $serverAddr;
             $clientConn->recv(new Datagram($cpkt, $peerAddr));
         } else {
-            $clientConn->onTimeout();
+            $clientConn->handleTimers();
         }
 
         foreach ($clientConn->drainEvents() as $event) {

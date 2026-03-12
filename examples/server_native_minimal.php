@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Datagram;
+use Varion\Ngtcp2\ServerConfig;
 use Varion\Ngtcp2\ServerConnection;
 
 function usage(): void
@@ -113,12 +114,9 @@ $local = parsePeerAddress($localName === false ? "{$host}:{$port}" : $localName)
 
 $server = ServerConnection::accept(
     new Datagram($packet, $remote, $local),
-    $local,
-    [
-        'certFile' => $cert,
-        'keyFile' => $key,
-        'alpn' => $alpn,
-    ]
+    (new ServerConfig())
+        ->withCertificate($cert, $key)
+        ->withAlpn($alpn)
 );
 
 foreach ($server->drainOutgoingDatagrams() as $outgoing) {
@@ -136,7 +134,7 @@ while (microtime(true) < $deadline && !$server->isClosed()) {
         }
     } else {
         try {
-            $server->onTimeout();
+            $server->handleTimers();
         } catch (Throwable $e) {
             fwrite(STDERR, "timeout warning: {$e->getMessage()}\n");
         }

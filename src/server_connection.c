@@ -20,9 +20,22 @@
 #include "internal/tls.h"
 
 zend_class_entry *php_quic_server_connection_ce;
+static zend_class_entry *php_quic_server_config_ce;
+static zend_object_handlers php_quic_server_config_handlers;
 
 static ngtcp2_tstamp php_quic_timestamp(void) {
   return (ngtcp2_tstamp)zend_hrtime();
+}
+
+static void php_quic_set_nullable_string(zend_string **target, zend_string *value) {
+  if (*target != NULL) {
+    zend_string_release(*target);
+    *target = NULL;
+  }
+
+  if (value != NULL) {
+    *target = zend_string_copy(value);
+  }
 }
 
 static ngtcp2_conn *php_quic_get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
@@ -127,12 +140,237 @@ static zend_string *php_quic_get_optional_string_option(HashTable *options,
 ZEND_BEGIN_ARG_INFO_EX(arginfo_server_connection_construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_server_config_construct, 0, 0, 0)
+  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
+  ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, certFile, IS_STRING, 1, "null")
+  ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, keyFile, IS_STRING, 1, "null")
+  ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, alpn, IS_STRING, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_server_config_with_local_address, 0, 1,
+                                       Varion\\Ngtcp2\\ServerConfig, 0)
+  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_server_config_with_certificate, 0, 2,
+                                       Varion\\Ngtcp2\\ServerConfig, 0)
+  ZEND_ARG_TYPE_INFO(0, certFile, IS_STRING, 0)
+  ZEND_ARG_TYPE_INFO(0, keyFile, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_server_config_with_alpn, 0, 1,
+                                       Varion\\Ngtcp2\\ServerConfig, 0)
+  ZEND_ARG_TYPE_INFO(0, alpn, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_server_config_get_local_address, 0, 0,
+                                       Varion\\Ngtcp2\\Address, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_server_config_get_cert_file, 0, 0, IS_STRING,
+                                        1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_server_config_get_key_file, 0, 0, IS_STRING,
+                                        1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_server_config_get_alpn, 0, 0, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_server_connection_accept, 0, 1,
                                        Varion\\Ngtcp2\\ServerConnection, 0)
   ZEND_ARG_OBJ_INFO(0, initial, Varion\\Ngtcp2\\Datagram, 0)
-  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
+  ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, configOrLocalAddress, "null")
   ZEND_ARG_ARRAY_INFO(0, options, 1)
 ZEND_END_ARG_INFO()
+
+PHP_METHOD(Ngtcp2_ServerConfig, __construct) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+  zval *local_address = NULL;
+  zend_string *cert_file = NULL;
+  zend_string *key_file = NULL;
+  zend_string *alpn = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(0, 4)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(local_address, php_quic_address_ce)
+    Z_PARAM_STR_OR_NULL(cert_file)
+    Z_PARAM_STR_OR_NULL(key_file)
+    Z_PARAM_STR_OR_NULL(alpn)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (cert_file != NULL && ZSTR_LEN(cert_file) == 0) {
+    zend_argument_value_error(2, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+  if (key_file != NULL && ZSTR_LEN(key_file) == 0) {
+    zend_argument_value_error(3, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+  if (alpn != NULL && ZSTR_LEN(alpn) == 0) {
+    zend_argument_value_error(4, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+
+  if (!Z_ISUNDEF(config->local_address)) {
+    zval_ptr_dtor(&config->local_address);
+  }
+  if (local_address != NULL) {
+    ZVAL_COPY(&config->local_address, local_address);
+  } else {
+    ZVAL_NULL(&config->local_address);
+  }
+
+  php_quic_set_nullable_string(&config->cert_file, cert_file);
+  php_quic_set_nullable_string(&config->key_file, key_file);
+  php_quic_set_nullable_string(&config->alpn, alpn);
+}
+
+PHP_METHOD(Ngtcp2_ServerConfig, withLocalAddress) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+  zval *local_address = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(local_address, php_quic_address_ce)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (!Z_ISUNDEF(config->local_address)) {
+    zval_ptr_dtor(&config->local_address);
+  }
+  if (local_address != NULL) {
+    ZVAL_COPY(&config->local_address, local_address);
+  } else {
+    ZVAL_NULL(&config->local_address);
+  }
+
+  RETURN_ZVAL(ZEND_THIS, 1, 0);
+}
+
+PHP_METHOD(Ngtcp2_ServerConfig, withCertificate) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+  zend_string *cert_file;
+  zend_string *key_file;
+
+  ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STR(cert_file)
+    Z_PARAM_STR(key_file)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (ZSTR_LEN(cert_file) == 0) {
+    zend_argument_value_error(1, "must be a non-empty string");
+    RETURN_THROWS();
+  }
+  if (ZSTR_LEN(key_file) == 0) {
+    zend_argument_value_error(2, "must be a non-empty string");
+    RETURN_THROWS();
+  }
+
+  php_quic_set_nullable_string(&config->cert_file, cert_file);
+  php_quic_set_nullable_string(&config->key_file, key_file);
+  RETURN_ZVAL(ZEND_THIS, 1, 0);
+}
+
+PHP_METHOD(Ngtcp2_ServerConfig, withAlpn) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+  zend_string *alpn = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR_OR_NULL(alpn)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (alpn != NULL && ZSTR_LEN(alpn) == 0) {
+    zend_argument_value_error(1, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+
+  php_quic_set_nullable_string(&config->alpn, alpn);
+  RETURN_ZVAL(ZEND_THIS, 1, 0);
+}
+
+PHP_METHOD(Ngtcp2_ServerConfig, getLocalAddress) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+  RETURN_COPY(&config->local_address);
+}
+
+PHP_METHOD(Ngtcp2_ServerConfig, getCertFile) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+
+  if (config->cert_file == NULL) {
+    RETURN_NULL();
+  }
+  RETURN_STR_COPY(config->cert_file);
+}
+
+PHP_METHOD(Ngtcp2_ServerConfig, getKeyFile) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+
+  if (config->key_file == NULL) {
+    RETURN_NULL();
+  }
+  RETURN_STR_COPY(config->key_file);
+}
+
+PHP_METHOD(Ngtcp2_ServerConfig, getAlpn) {
+  php_quic_server_config *config = Z_QUIC_SERVER_CONFIG_P(ZEND_THIS);
+
+  if (config->alpn == NULL) {
+    RETURN_NULL();
+  }
+  RETURN_STR_COPY(config->alpn);
+}
+
+static const zend_function_entry php_quic_server_config_methods[] = {
+  PHP_ME(Ngtcp2_ServerConfig, __construct, arginfo_server_config_construct, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ServerConfig, withLocalAddress, arginfo_server_config_with_local_address,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ServerConfig, withCertificate, arginfo_server_config_with_certificate,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ServerConfig, withAlpn, arginfo_server_config_with_alpn, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ServerConfig, getLocalAddress, arginfo_server_config_get_local_address,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ServerConfig, getCertFile, arginfo_server_config_get_cert_file,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ServerConfig, getKeyFile, arginfo_server_config_get_key_file,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ServerConfig, getAlpn, arginfo_server_config_get_alpn, ZEND_ACC_PUBLIC)
+  PHP_FE_END
+};
+
+static zend_object *php_quic_server_config_create_object(zend_class_entry *ce) {
+  php_quic_server_config *config;
+
+  config = zend_object_alloc(sizeof(*config), ce);
+  ZVAL_UNDEF(&config->local_address);
+  ZVAL_NULL(&config->local_address);
+  config->cert_file = NULL;
+  config->key_file = NULL;
+  config->alpn = NULL;
+
+  zend_object_std_init(&config->std, ce);
+  object_properties_init(&config->std, ce);
+  config->std.handlers = &php_quic_server_config_handlers;
+
+  return &config->std;
+}
+
+static void php_quic_server_config_free_object(zend_object *object) {
+  php_quic_server_config *config;
+
+  config = (php_quic_server_config *)((char *)object -
+                                      XtOffsetOf(php_quic_server_config, std));
+
+  if (!Z_ISUNDEF(config->local_address)) {
+    zval_ptr_dtor(&config->local_address);
+    ZVAL_UNDEF(&config->local_address);
+  }
+
+  php_quic_set_nullable_string(&config->cert_file, NULL);
+  php_quic_set_nullable_string(&config->key_file, NULL);
+  php_quic_set_nullable_string(&config->alpn, NULL);
+
+  zend_object_std_dtor(&config->std);
+}
 
 PHP_METHOD(Ngtcp2_ServerConnection, __construct) {
   zend_throw_exception(
@@ -145,8 +383,11 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   php_quic_connection *connection;
   php_quic_datagram *initial_datagram;
   zval *initial;
-  zval *local_address = NULL;
-  zval *options = NULL;
+  zval *config_or_local = NULL;
+  zval *legacy_options = NULL;
+  zval *effective_local_address = NULL;
+  php_quic_server_config *server_config = NULL;
+  HashTable *options_ht = NULL;
   zval server_zv;
   zend_string *cert_file = NULL;
   zend_string *key_file = NULL;
@@ -168,9 +409,62 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_OBJECT_OF_CLASS(initial, php_quic_datagram_ce)
     Z_PARAM_OPTIONAL
-    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(local_address, php_quic_address_ce)
-    Z_PARAM_ARRAY_OR_NULL(options)
+    Z_PARAM_ZVAL(config_or_local)
+    Z_PARAM_ARRAY_OR_NULL(legacy_options)
   ZEND_PARSE_PARAMETERS_END();
+
+  if (config_or_local != NULL && Z_TYPE_P(config_or_local) == IS_OBJECT &&
+      instanceof_function(Z_OBJCE_P(config_or_local), php_quic_server_config_ce)) {
+    if (legacy_options != NULL) {
+      zend_argument_value_error(3,
+                                "must not be provided when second argument is ServerConfig");
+      RETURN_THROWS();
+    }
+    server_config = Z_QUIC_SERVER_CONFIG_P(config_or_local);
+    if (Z_TYPE(server_config->local_address) == IS_OBJECT) {
+      effective_local_address = &server_config->local_address;
+    }
+    if (server_config->cert_file == NULL || server_config->key_file == NULL) {
+      zend_throw_exception(
+        zend_ce_exception,
+        "ServerConnection::accept [config]: ServerConfig.certFile and ServerConfig.keyFile are required",
+        0);
+      RETURN_THROWS();
+    }
+    cert_file = zend_string_copy(server_config->cert_file);
+    key_file = zend_string_copy(server_config->key_file);
+    if (server_config->alpn != NULL) {
+      alpn = zend_string_copy(server_config->alpn);
+    } else {
+      alpn = zend_string_init("hq-interop", sizeof("hq-interop") - 1, 0);
+    }
+  } else {
+    if (config_or_local != NULL && Z_TYPE_P(config_or_local) == IS_OBJECT) {
+      if (!instanceof_function(Z_OBJCE_P(config_or_local), php_quic_address_ce)) {
+        zend_type_error("ServerConnection::accept(): Argument #2 ($configOrLocalAddress) "
+                        "must be of type ?Varion\\Ngtcp2\\ServerConfig, ?Varion\\Ngtcp2\\Address, ?array");
+        RETURN_THROWS();
+      }
+      effective_local_address = config_or_local;
+    }
+
+    if (config_or_local != NULL && Z_TYPE_P(config_or_local) == IS_ARRAY) {
+      if (legacy_options != NULL) {
+        zend_argument_value_error(3, "must not be provided when second argument is options array");
+        RETURN_THROWS();
+      }
+      options_ht = Z_ARRVAL_P(config_or_local);
+    } else {
+      if (legacy_options == NULL || Z_TYPE_P(legacy_options) != IS_ARRAY) {
+        zend_throw_exception(
+          zend_ce_exception,
+          "ServerConnection::accept [options]: requires options array with certFile and keyFile",
+          0);
+        RETURN_THROWS();
+      }
+      options_ht = Z_ARRVAL_P(legacy_options);
+    }
+  }
 
   initial_datagram = Z_QUIC_DATAGRAM_P(initial);
   if (initial_datagram->payload == NULL ||
@@ -204,30 +498,24 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     RETURN_THROWS();
   }
 
-  if (options == NULL || Z_TYPE_P(options) != IS_ARRAY) {
-    zend_throw_exception(
-      zend_ce_exception,
-      "ServerConnection::accept [options]: requires options array with certFile and keyFile",
-      0);
-    RETURN_THROWS();
-  }
+  if (cert_file == NULL || key_file == NULL || alpn == NULL) {
+    cert_file = php_quic_get_required_string_option(options_ht, "certFile");
+    if (cert_file == NULL) {
+      RETURN_THROWS();
+    }
 
-  cert_file = php_quic_get_required_string_option(Z_ARRVAL_P(options), "certFile");
-  if (cert_file == NULL) {
-    RETURN_THROWS();
-  }
+    key_file = php_quic_get_required_string_option(options_ht, "keyFile");
+    if (key_file == NULL) {
+      zend_string_release(cert_file);
+      RETURN_THROWS();
+    }
 
-  key_file = php_quic_get_required_string_option(Z_ARRVAL_P(options), "keyFile");
-  if (key_file == NULL) {
-    zend_string_release(cert_file);
-    RETURN_THROWS();
-  }
-
-  alpn = php_quic_get_optional_string_option(Z_ARRVAL_P(options), "alpn", "hq-interop");
-  if (alpn == NULL) {
-    zend_string_release(cert_file);
-    zend_string_release(key_file);
-    RETURN_THROWS();
+    alpn = php_quic_get_optional_string_option(options_ht, "alpn", "hq-interop");
+    if (alpn == NULL) {
+      zend_string_release(cert_file);
+      zend_string_release(key_file);
+      RETURN_THROWS();
+    }
   }
 
   if (php_quic_address_to_sockaddr(&initial_datagram->peer_address, &remote_addr,
@@ -239,8 +527,8 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     RETURN_THROWS();
   }
 
-  if (local_address != NULL) {
-    if (php_quic_address_to_sockaddr(local_address, &local_addr,
+  if (effective_local_address != NULL) {
+    if (php_quic_address_to_sockaddr(effective_local_address, &local_addr,
                                      &local_addrlen) != SUCCESS) {
       zend_throw_exception(zend_ce_exception, "ServerConnection::accept [address]: localAddress is invalid", 0);
       zend_string_release(cert_file);
@@ -271,8 +559,8 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   connection = Z_QUIC_CONNECTION_P(&server_zv);
 
   ZVAL_COPY(&connection->remote_address_zv, &initial_datagram->peer_address);
-  if (local_address != NULL) {
-    ZVAL_COPY(&connection->local_address_zv, local_address);
+  if (effective_local_address != NULL) {
+    ZVAL_COPY(&connection->local_address_zv, effective_local_address);
   } else if (!Z_ISUNDEF(initial_datagram->local_address) &&
              Z_TYPE(initial_datagram->local_address) == IS_OBJECT) {
     ZVAL_COPY(&connection->local_address_zv, &initial_datagram->local_address);
@@ -403,6 +691,16 @@ static const zend_function_entry php_quic_server_connection_methods[] = {
 
 int php_ngtcp2_server_connection_init(INIT_FUNC_ARGS) {
   zend_class_entry ce;
+
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "ServerConfig",
+                      php_quic_server_config_methods);
+  php_quic_server_config_ce = zend_register_internal_class(&ce);
+  php_quic_server_config_ce->create_object = php_quic_server_config_create_object;
+
+  memcpy(&php_quic_server_config_handlers, &std_object_handlers,
+         sizeof(php_quic_server_config_handlers));
+  php_quic_server_config_handlers.offset = XtOffsetOf(php_quic_server_config, std);
+  php_quic_server_config_handlers.free_obj = php_quic_server_config_free_object;
 
   INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "ServerConnection",
                       php_quic_server_connection_methods);

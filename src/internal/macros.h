@@ -11,6 +11,10 @@
   ((php_quic_client_config *)((char *)Z_OBJ_P((zv)) -                           \
                               XtOffsetOf(php_quic_client_config, std)))
 
+#define Z_QUIC_SERVER_CONFIG_P(zv)                                              \
+  ((php_quic_server_config *)((char *)Z_OBJ_P((zv)) -                           \
+                              XtOffsetOf(php_quic_server_config, std)))
+
 #define Z_QUIC_STREAM_P(zv)                                                     \
   ((php_quic_stream *)((char *)Z_OBJ_P((zv)) -                                  \
                        XtOffsetOf(php_quic_stream, std)))
