@@ -95,8 +95,12 @@ typedef struct _php_quic_address {
 
 typedef struct _php_quic_datagram {
   zend_string *payload;
-  zval remote_address;
+  zval peer_address;
   zval local_address;
+  zend_long ecn;
+  zend_long received_at;
+  zend_bool has_ecn;
+  zend_bool has_received_at;
   zend_object std;
 } php_quic_datagram;
 

@@ -230,9 +230,9 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
     RETURN_THROWS();
   }
 
-  if (php_quic_address_to_sockaddr(&initial_datagram->remote_address, &remote_addr,
+  if (php_quic_address_to_sockaddr(&initial_datagram->peer_address, &remote_addr,
                                    &remote_addrlen) != SUCCESS) {
-    zend_throw_exception(zend_ce_exception, "ServerConnection::accept [address]: Datagram.remoteAddress is invalid", 0);
+    zend_throw_exception(zend_ce_exception, "ServerConnection::accept [address]: Datagram.peerAddress is invalid", 0);
     zend_string_release(cert_file);
     zend_string_release(key_file);
     zend_string_release(alpn);
@@ -270,7 +270,7 @@ PHP_METHOD(Ngtcp2_ServerConnection, accept) {
   object_init_ex(&server_zv, php_quic_server_connection_ce);
   connection = Z_QUIC_CONNECTION_P(&server_zv);
 
-  ZVAL_COPY(&connection->remote_address_zv, &initial_datagram->remote_address);
+  ZVAL_COPY(&connection->remote_address_zv, &initial_datagram->peer_address);
   if (local_address != NULL) {
     ZVAL_COPY(&connection->local_address_zv, local_address);
   } else if (!Z_ISUNDEF(initial_datagram->local_address) &&

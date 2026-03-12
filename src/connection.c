@@ -535,9 +535,9 @@ PHP_METHOD(Ngtcp2_Connection, recv) {
 
   datagram = Z_QUIC_DATAGRAM_P(datagram_zv);
 
-  if (php_quic_address_to_sockaddr(&datagram->remote_address, &remote_addr,
+  if (php_quic_address_to_sockaddr(&datagram->peer_address, &remote_addr,
                                    &remote_addrlen) != SUCCESS) {
-    zend_throw_exception(zend_ce_exception, "Datagram.remoteAddress is invalid", 0);
+    zend_throw_exception(zend_ce_exception, "Datagram.peerAddress is invalid", 0);
     RETURN_THROWS();
   }
 
@@ -704,10 +704,10 @@ PHP_METHOD(Ngtcp2_Connection, drainOutgoingDatagrams) {
       }
       datagram->payload = zend_string_init((const char *)buf, (size_t)nwrite, 0);
 
-      if (!Z_ISUNDEF(datagram->remote_address)) {
-        zval_ptr_dtor(&datagram->remote_address);
+      if (!Z_ISUNDEF(datagram->peer_address)) {
+        zval_ptr_dtor(&datagram->peer_address);
       }
-      ZVAL_COPY(&datagram->remote_address, &connection->remote_address_zv);
+      ZVAL_COPY(&datagram->peer_address, &connection->remote_address_zv);
 
       if (!Z_ISUNDEF(datagram->local_address)) {
         zval_ptr_dtor(&datagram->local_address);
@@ -802,10 +802,10 @@ PHP_METHOD(Ngtcp2_Connection, drainOutgoingDatagrams) {
     }
     datagram->payload = zend_string_init((const char *)buf, (size_t)nwrite, 0);
 
-    if (!Z_ISUNDEF(datagram->remote_address)) {
-      zval_ptr_dtor(&datagram->remote_address);
+    if (!Z_ISUNDEF(datagram->peer_address)) {
+      zval_ptr_dtor(&datagram->peer_address);
     }
-    ZVAL_COPY(&datagram->remote_address, &connection->remote_address_zv);
+    ZVAL_COPY(&datagram->peer_address, &connection->remote_address_zv);
 
     if (!Z_ISUNDEF(datagram->local_address)) {
       zval_ptr_dtor(&datagram->local_address);

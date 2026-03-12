@@ -56,7 +56,7 @@ try {
 
     $corrupted = new Datagram(
         $payload,
-        $initial->getRemoteAddress(),
+        $initial->getPeerAddress(),
         $initial->getLocalAddress()
     );
 
