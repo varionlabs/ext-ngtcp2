@@ -166,24 +166,25 @@ while (true) {
     }
 
     foreach ($endpoint->drainAcceptedConnections() as $conn) {
-        $active[] = $conn;
-        fwrite(STDERR, "accepted connection, active=" . count($active) . PHP_EOL);
+        $id = spl_object_id($conn);
+        $active[$id] = $conn;
+        fwrite(STDERR, "accepted connection id={$id} active=" . count($active) . PHP_EOL);
     }
 
     foreach ($endpoint->drainOutgoingDatagrams() as $outgoing) {
         sendDatagram($udp, $outgoing);
     }
 
-    foreach ($active as $i => $conn) {
+    foreach ($active as $id => $conn) {
         foreach ($conn->drainEvents() as $event) {
-            fwrite(STDERR, get_class($event) . PHP_EOL);
+            fwrite(STDERR, "conn={$id} event=" . get_class($event) . PHP_EOL);
         }
 
         if ($conn->isClosed()) {
-            unset($active[$i]);
+            unset($active[$id]);
+            fwrite(STDERR, "connection closed id={$id} active=" . count($active) . PHP_EOL);
         }
     }
-    $active = array_values($active);
 
     // Keep timer progression independent from receive frequency.
     $dueAt = $endpoint->getNextExpiry();
