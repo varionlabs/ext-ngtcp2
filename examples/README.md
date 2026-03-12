@@ -1,9 +1,9 @@
 # Examples
 
-## Server wrapper (stable path)
+## Minimal native server
 
-The stable API surface is client-focused. For conservative local testing, you can
-use `server_minimal.php` to run `/usr/sbin/gtlsserver` as an external QUIC server.
+`ServerConnection::accept(...)` is available as an experimental server-mode entry.
+You can run the minimal native server with:
 
 ```sh
 php examples/server_minimal.php --host=127.0.0.1 --port=4433
@@ -26,19 +26,18 @@ php examples/client_once.php --host=127.0.0.1 --port=4433 --path=/
 
 Optional flags:
 
-- `--docroot=/path/to/root`
 - `--cert=/path/to/server.crt`
 - `--key=/path/to/server.key`
+- `--alpn=h3`
 
 If cert/key are missing, the script generates a temporary self-signed certificate via `openssl`.
 
-## Experimental native server entry
+## Legacy wrapper (gtlsserver)
 
-`ServerConnection::accept(...)` is now available as an experimental server-mode entry.
-You can try it with:
+For conservative local testing against external `/usr/sbin/gtlsserver`, use:
 
 ```sh
-php examples/server_native_minimal.php --host=127.0.0.1 --port=4433 --alpn=h3
+php examples/server_gtlsserver_minimal.php --host=127.0.0.1 --port=4433
 ```
 
 To test stream read/write behavior on the same connection, use the echo variant:
@@ -47,7 +46,7 @@ To test stream read/write behavior on the same connection, use the echo variant:
 php examples/server_native_echo.php --host=127.0.0.1 --port=4433 --alpn=h3 --prefix='echo: '
 ```
 
-`server_native_minimal.php` / `server_native_echo.php` print `recv warning:`,
+`server_minimal.php` / `server_native_echo.php` print `recv warning:`,
 `timeout warning:`, and `drainOutgoingDatagrams warning:` during close/draining transitions.
 These warnings are expected in the current MVP path and are non-fatal.
 

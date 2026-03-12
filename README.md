@@ -39,10 +39,16 @@ php -n -d extension=$(pwd)/modules/ngtcp2.so -m | rg '^ngtcp2$'
 
 ### 3. Run a minimal client example
 
-Start an external QUIC test server in one terminal:
+Start the minimal native QUIC server in one terminal:
 
 ```sh
 php -d extension=$(pwd)/modules/ngtcp2.so examples/server_minimal.php --host=127.0.0.1 --port=4433
+```
+
+For the legacy external `gtlsserver` wrapper, use:
+
+```sh
+php -d extension=$(pwd)/modules/ngtcp2.so examples/server_gtlsserver_minimal.php --host=127.0.0.1 --port=4433
 ```
 
 Run a client in another terminal:

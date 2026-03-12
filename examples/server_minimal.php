@@ -2,12 +2,18 @@
 
 declare(strict_types=1);
 
+use Varion\Ngtcp2\Address;
+use Varion\Ngtcp2\Datagram;
+use Varion\Ngtcp2\ServerConfig;
+use Varion\Ngtcp2\ServerConnection;
+
 function usage(): void
 {
     fwrite(STDERR, <<<TXT
 Usage:
-  php examples/server_minimal.php [--host=127.0.0.1] [--port=4433] [--docroot=.]
+  php examples/server_minimal.php [--host=127.0.0.1] [--port=4433]
                                  [--cert=/tmp/ngtcp2/server.crt] [--key=/tmp/ngtcp2/server.key]
+                                 [--alpn=h3]
 
 TXT);
 }
@@ -41,14 +47,21 @@ function ensureCertificate(string $certPath, string $keyPath, string $host): voi
     }
 }
 
-if (!is_executable('/usr/sbin/gtlsserver')) {
-    throw new RuntimeException('/usr/sbin/gtlsserver is not available');
-}
-if (!is_executable('/usr/bin/openssl')) {
-    throw new RuntimeException('/usr/bin/openssl is not available');
+function parsePeerAddress(string $peer): Address
+{
+    if (preg_match('/^\[(.+)\]:(\d+)$/', $peer, $m) === 1) {
+        return new Address($m[1], (int)$m[2]);
+    }
+
+    $pos = strrpos($peer, ':');
+    if ($pos === false) {
+        throw new RuntimeException("cannot parse peer address: {$peer}");
+    }
+
+    return new Address(substr($peer, 0, $pos), (int)substr($peer, $pos + 1));
 }
 
-$options = getopt('', ['host::', 'port::', 'docroot::', 'cert::', 'key::', 'help']);
+$options = getopt('', ['host::', 'port::', 'cert::', 'key::', 'alpn::', 'help']);
 if ($options === false) {
     usage();
     exit(2);
@@ -60,65 +73,86 @@ if (isset($options['help'])) {
 
 $host = is_string($options['host'] ?? null) ? $options['host'] : '127.0.0.1';
 $port = (int)($options['port'] ?? 4433);
-$docroot = is_string($options['docroot'] ?? null) ? $options['docroot'] : getcwd();
 $cert = is_string($options['cert'] ?? null) ? $options['cert'] : '/tmp/ngtcp2/server.crt';
 $key = is_string($options['key'] ?? null) ? $options['key'] : '/tmp/ngtcp2/server.key';
+$alpn = is_string($options['alpn'] ?? null) ? $options['alpn'] : 'h3';
 
 if ($port <= 0 || $port > 65535) {
     throw new InvalidArgumentException("invalid --port: {$port}");
 }
-if (!is_dir($docroot)) {
-    throw new InvalidArgumentException("docroot does not exist: {$docroot}");
+if (!is_executable('/usr/bin/openssl')) {
+    throw new RuntimeException('/usr/bin/openssl is not available');
 }
 
 ensureCertificate($cert, $key, $host);
 
-$command = sprintf(
-    '/usr/sbin/gtlsserver %s %d %s %s --quiet -d %s',
-    escapeshellarg($host),
-    $port,
-    escapeshellarg($key),
-    escapeshellarg($cert),
-    escapeshellarg($docroot)
+$udp = stream_socket_server(
+    "udp://{$host}:{$port}",
+    $errno,
+    $errstr,
+    STREAM_SERVER_BIND
 );
-
-$descriptorSpec = [
-    0 => ['pipe', 'r'],
-    1 => STDOUT,
-    2 => STDERR,
-];
-
-$process = proc_open($command, $descriptorSpec, $pipes);
-if (!is_resource($process)) {
-    throw new RuntimeException('failed to start gtlsserver');
+if ($udp === false) {
+    throw new RuntimeException("failed to bind UDP socket: ({$errno}) {$errstr}");
 }
+stream_set_blocking($udp, false);
 
-fclose($pipes[0]);
+fwrite(STDERR, "native server waiting on {$host}:{$port}\n");
 
-$cleanup = static function () use (&$process): void {
-    if (!is_resource($process)) {
-        return;
-    }
-    $status = proc_get_status($process);
-    if ($status['running']) {
-        proc_terminate($process);
-        usleep(300000);
-    }
-    proc_close($process);
-};
-
-register_shutdown_function($cleanup);
-
-fwrite(STDERR, "gtlsserver started on {$host}:{$port}\n");
-fwrite(STDERR, "docroot={$docroot}\n");
-fwrite(STDERR, "cert={$cert}\n");
-fwrite(STDERR, "key={$key}\n");
-fwrite(STDERR, "Stop with Ctrl+C.\n");
-
+$peer = null;
 while (true) {
-    $status = proc_get_status($process);
-    if (!$status['running']) {
+    $packet = stream_socket_recvfrom($udp, 65535, 0, $peer);
+    if (is_string($packet) && $packet !== '' && is_string($peer) && $peer !== '') {
         break;
     }
-    usleep(200000);
+    usleep(10000);
 }
+
+$remote = parsePeerAddress($peer);
+$localName = stream_socket_get_name($udp, false);
+$local = parsePeerAddress($localName === false ? "{$host}:{$port}" : $localName);
+
+$server = ServerConnection::accept(
+    new Datagram($packet, $remote, $local),
+    (new ServerConfig())
+        ->withCertificate($cert, $key)
+        ->withAlpn($alpn)
+);
+
+foreach ($server->drainOutgoingDatagrams() as $outgoing) {
+    stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
+}
+
+$deadline = microtime(true) + 10.0;
+while (microtime(true) < $deadline && !$server->isClosed()) {
+    $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
+    if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
+        try {
+            $server->recv(new Datagram($packet, parsePeerAddress($from), $local));
+        } catch (Throwable $e) {
+            fwrite(STDERR, "recv warning: {$e->getMessage()}\n");
+        }
+    } else {
+        try {
+            $server->handleTimers();
+        } catch (Throwable $e) {
+            fwrite(STDERR, "timeout warning: {$e->getMessage()}\n");
+        }
+    }
+
+    try {
+        foreach ($server->drainOutgoingDatagrams() as $outgoing) {
+            stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
+        }
+    } catch (Throwable $e) {
+        fwrite(STDERR, "drainOutgoingDatagrams warning: {$e->getMessage()}\n");
+    }
+
+    foreach ($server->drainEvents() as $event) {
+        fwrite(STDERR, get_class($event) . PHP_EOL);
+    }
+
+    usleep(10000);
+}
+
+fclose($udp);
