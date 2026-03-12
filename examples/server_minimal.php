@@ -135,7 +135,12 @@ $server = ServerConnection::accept(
 );
 
 foreach ($server->drainOutgoingDatagrams() as $outgoing) {
-    stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
+    stream_socket_sendto(
+        $udp,
+        $outgoing->getPayload(),
+        0,
+        (string)$outgoing->getPeerAddress()
+    );
 }
 
 $deadline = microtime(true) + 10.0;
@@ -177,7 +182,12 @@ while (microtime(true) < $deadline && !$server->isClosed()) {
 
     try {
         foreach ($server->drainOutgoingDatagrams() as $outgoing) {
-            stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
+            stream_socket_sendto(
+                $udp,
+                $outgoing->getPayload(),
+                0,
+                (string)$outgoing->getPeerAddress()
+            );
         }
     } catch (Throwable $e) {
         fwrite(STDERR, "drainOutgoingDatagrams warning: {$e->getMessage()}\n");
