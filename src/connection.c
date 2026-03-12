@@ -325,6 +325,21 @@ static void php_quic_connection_update_tx_entry(php_quic_connection *connection,
   }
 }
 
+static void php_quic_connection_discard_tx_entry(php_quic_stream_entry *entry) {
+  if (entry == NULL) {
+    return;
+  }
+
+  if (entry->tx_buffer != NULL) {
+    zend_string_release(entry->tx_buffer);
+    entry->tx_buffer = zend_string_init("", 0, 0);
+  }
+  entry->tx_offset = 0;
+  entry->fin_pending = 0;
+  entry->fin_sent = 1;
+  entry->writable = 0;
+}
+
 static int php_quic_connection_init_native(php_quic_connection *connection) {
   ngtcp2_callbacks callbacks;
   ngtcp2_settings settings;
@@ -970,6 +985,7 @@ PHP_METHOD(Ngtcp2_Connection, drainOutgoingDatagrams) {
   zval datagram_zv;
   php_quic_datagram *datagram;
   int emitted = 0;
+  zend_bool force_conn_only = 0;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
@@ -1030,8 +1046,18 @@ PHP_METHOD(Ngtcp2_Connection, drainOutgoingDatagrams) {
     ngtcp2_path_storage_zero(&ps);
     memset(&pi, 0, sizeof(pi));
 
-    entry = php_quic_connection_pick_tx_stream(connection, &stream_id, &datav,
-                                               &datavcnt, &fin);
+    if (force_conn_only) {
+      entry = NULL;
+      stream_id = -1;
+      datav.base = NULL;
+      datav.len = 0;
+      datavcnt = 0;
+      fin = 0;
+      force_conn_only = 0;
+    } else {
+      entry = php_quic_connection_pick_tx_stream(connection, &stream_id, &datav,
+                                                 &datavcnt, &fin);
+    }
 
     if (entry != NULL && entry->pending_open) {
       int64_t opened_stream_id = -1;
@@ -1079,6 +1105,21 @@ PHP_METHOD(Ngtcp2_Connection, drainOutgoingDatagrams) {
       if (nwrite == NGTCP2_ERR_WRITE_MORE) {
         php_quic_connection_update_tx_entry(connection, entry, wdatalen,
                                             fin != 0, 0);
+        continue;
+      }
+      if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
+        php_quic_connection_update_tx_entry(connection, entry, wdatalen,
+                                            fin != 0, 0);
+        if (entry != NULL) {
+          /* Retry once without stream payload so ngtcp2 can emit connection-level frames. */
+          force_conn_only = 1;
+          continue;
+        }
+        break;
+      }
+      if (nwrite == NGTCP2_ERR_STREAM_SHUT_WR) {
+        /* Peer already shut write-side for this stream; drop buffered tx for it. */
+        php_quic_connection_discard_tx_entry(entry);
         continue;
       }
       if (php_quic_connection_is_nonfatal_closing_error((int)nwrite)) {
