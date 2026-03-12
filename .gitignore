@@ -21,3 +21,6 @@ run-tests.php
 *.la
 *.lo
 *.o
+
+# compatibility shim; keep local if needed, but do not track
+examples/server_native_minimal.php
