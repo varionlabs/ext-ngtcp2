@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+/*
+ * Single-connection happy-path example for learning ServerConnection API usage.
+ *
+ * This is not a full QUIC server architecture. Real deployments need a
+ * multi-connection routing layer (CID-based dispatch/registry) on top of this.
+ */
+
 use Varion\Ngtcp2\Address;
 use Varion\Ngtcp2\Datagram;
 use Varion\Ngtcp2\ServerConfig;
