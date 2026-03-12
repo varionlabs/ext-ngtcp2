@@ -48,20 +48,6 @@ function ensureCertificate(string $certPath, string $keyPath, string $host): voi
     }
 }
 
-function parsePeerAddress(string $peer): Address
-{
-    if (preg_match('/^\[(.+)\]:(\d+)$/', $peer, $m) === 1) {
-        return new Address($m[1], (int)$m[2]);
-    }
-
-    $pos = strrpos($peer, ':');
-    if ($pos === false) {
-        throw new RuntimeException("cannot parse peer address: {$peer}");
-    }
-
-    return new Address(substr($peer, 0, $pos), (int)substr($peer, $pos + 1));
-}
-
 function nowMilliseconds(): int
 {
     return (int) floor(microtime(true) * 1000);
@@ -140,9 +126,9 @@ while (true) {
     }
 }
 
-$remote = parsePeerAddress($peer);
+$remote = Address::fromString($peer);
 $localName = stream_socket_get_name($udp, false);
-$local = parsePeerAddress($localName === false ? "{$host}:{$port}" : $localName);
+$local = Address::fromString($localName === false ? "{$host}:{$port}" : $localName);
 
 $server = ServerConnection::accept(
     new Datagram($packet, $remote, $local),
@@ -179,7 +165,7 @@ while (microtime(true) < $deadline && !$server->isClosed()) {
         $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
         if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
             try {
-                $server->recv(new Datagram($packet, parsePeerAddress($from), $local));
+                $server->recv(new Datagram($packet, Address::fromString($from), $local));
             } catch (Throwable $e) {
                 fwrite(STDERR, "recv warning: {$e->getMessage()}\n");
             }

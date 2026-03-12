@@ -7,20 +7,6 @@ use Varion\Ngtcp2\ClientConfig;
 use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\Datagram;
 
-function parsePeerAddress(string $peer): Address
-{
-    if (preg_match('/^\[(.+)\]:(\d+)$/', $peer, $m) === 1) {
-        return new Address($m[1], (int)$m[2]);
-    }
-
-    $pos = strrpos($peer, ':');
-    if ($pos === false) {
-        throw new RuntimeException("cannot parse peer address: {$peer}");
-    }
-
-    return new Address(substr($peer, 0, $pos), (int)substr($peer, $pos + 1));
-}
-
 $remote = new Address('127.0.0.1', 4433);
 $config = (new ClientConfig())
     ->withServerName($remote->getHost())
@@ -66,7 +52,7 @@ while (!$connection->isClosed()) {
             if (!is_string($peer) || $peer === '') {
                 throw new RuntimeException('recvfrom returned packet without peer address');
             }
-            $connection->recv(new Datagram($packet, parsePeerAddress($peer)));
+            $connection->recv(new Datagram($packet, Address::fromString($peer)));
         }
     } else {
         $connection->onTimeout();

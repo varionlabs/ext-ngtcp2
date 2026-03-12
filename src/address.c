@@ -6,6 +6,8 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <Zend/zend_exceptions.h>
+#include <ext/spl/spl_exceptions.h>
 
 #include "internal/address.h"
 #include "internal/macros.h"
@@ -23,6 +25,74 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_address_get_port, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_address_from_string, 0, 1,
+                                       Varion\\Ngtcp2\\Address, 0)
+  ZEND_ARG_TYPE_INFO(0, endpoint, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+static int php_quic_address_parse_endpoint(zend_string *endpoint, zend_string **host_out,
+                                           zend_long *port_out) {
+  const char *value = ZSTR_VAL(endpoint);
+  size_t len = ZSTR_LEN(endpoint);
+  const char *host_start = NULL;
+  size_t host_len = 0;
+  const char *port_start = NULL;
+  char *endptr = NULL;
+  long parsed_port;
+
+  if (len == 0) {
+    return FAILURE;
+  }
+
+  if (value[0] == '[') {
+    const char *closing = strchr(value + 1, ']');
+    if (closing == NULL) {
+      return FAILURE;
+    }
+
+    host_start = value + 1;
+    host_len = (size_t)(closing - host_start);
+    if (host_len == 0) {
+      return FAILURE;
+    }
+
+    if ((size_t)(closing - value + 1) >= len || closing[1] != ':') {
+      return FAILURE;
+    }
+
+    port_start = closing + 2;
+  } else {
+    const char *sep = strrchr(value, ':');
+    const char *first = strchr(value, ':');
+    if (sep == NULL || sep == value) {
+      return FAILURE;
+    }
+    if (first != sep) {
+      return FAILURE;
+    }
+
+    host_start = value;
+    host_len = (size_t)(sep - value);
+    port_start = sep + 1;
+  }
+
+  if (port_start == NULL || *port_start == '\0') {
+    return FAILURE;
+  }
+
+  parsed_port = strtol(port_start, &endptr, 10);
+  if (*port_start == '\0' || endptr == NULL || *endptr != '\0') {
+    return FAILURE;
+  }
+  if (parsed_port < 0 || parsed_port > 65535) {
+    return FAILURE;
+  }
+
+  *host_out = zend_string_init(host_start, host_len, 0);
+  *port_out = (zend_long)parsed_port;
+  return SUCCESS;
+}
 
 PHP_METHOD(Ngtcp2_Address, __construct) {
   php_quic_address *address;
@@ -53,8 +123,35 @@ PHP_METHOD(Ngtcp2_Address, getPort) {
   RETURN_LONG(address->port);
 }
 
+PHP_METHOD(Ngtcp2_Address, fromString) {
+  zend_string *endpoint;
+  zend_string *host = NULL;
+  zend_long port = 0;
+  php_quic_address *address;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR(endpoint)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (php_quic_address_parse_endpoint(endpoint, &host, &port) != SUCCESS) {
+    zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
+                            "Address::fromString [endpoint]: invalid endpoint format, expected host:port or [ipv6]:port");
+    RETURN_THROWS();
+  }
+
+  object_init_ex(return_value, php_quic_address_ce);
+  address = Z_QUIC_ADDRESS_P(return_value);
+  if (address->host != NULL) {
+    zend_string_release(address->host);
+  }
+  address->host = host;
+  address->port = port;
+}
+
 static const zend_function_entry php_quic_address_methods[] = {
   PHP_ME(Ngtcp2_Address, __construct, arginfo_address_construct, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Address, fromString, arginfo_address_from_string,
+         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
   PHP_ME(Ngtcp2_Address, getHost, arginfo_address_get_host, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Address, getPort, arginfo_address_get_port, ZEND_ACC_PUBLIC)
   PHP_FE_END
