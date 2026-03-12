@@ -158,26 +158,52 @@ final class ServerEndpoint
 
 ## 5. Error / Exception Policy
 
-### Throw exceptions
+### Error taxonomy (design baseline)
 
-- Programmer/configuration errors:
-  - invalid constructor args
-  - invalid local address/config state
-- Internal invariant violations:
-  - impossible registry state (e.g., CID mapped to missing connection)
+1. Misuse / API contract violations
+- Examples: invalid constructor args, invalid object state, wrong call order assumptions.
+- Handling: throw exception immediately.
 
-### Drop without exception
+2. TLS/configuration failures
+- Examples: invalid cert/key paths, TLS setup failure during accept bootstrap.
+- Handling: throw exception (operator action required).
 
-- Malformed/unroutable/non-Initial datagrams in endpoint recv path
-- Unknown CID packets that do not qualify for accept
-- Best-effort parse failures in non-critical fast path (policy: drop + metric/log in Phase 2)
+3. Protocol/transport close outcomes
+- Examples: peer protocol violation, transport close, draining/closing transitions.
+- Handling: do not model as hot-path exception in endpoint recv loop.
+- Surface via connection state/events and generated close datagrams.
+
+4. Ignorable network input
+- Examples: malformed/unroutable datagram, unknown CID non-Initial, parse-failed non-critical packet.
+- Handling: drop without exception (optionally count/log).
+
+5. Internal invariants/bugs
+- Examples: CID mapped to missing connection, impossible registry ownership state.
+- Handling: throw exception (implementation defect).
+
+### `recv()` contract (important)
+
+- `ServerEndpoint::recv()` should be resilient for network-originated bad input.
+- Principle:
+  - network weirdness -> state transition / drop / metric (non-throw)
+  - programmer misuse or invariant break -> throw
+- Operational goal: avoid exception-per-packet behavior under hostile/noisy traffic.
+
+### Connection close behavior
+
+- When packet handling implies close/draining:
+  - update connection state (`isClosed`/events)
+  - close frames are emitted through `drainOutgoingDatagrams()`
+- Endpoint caller should not be forced to catch on every malformed packet.
 
 ### Observability policy
 
-- Phase 1: no new public event classes required.
-- Phase 2: add endpoint-level observability surface:
-  - counters (`accepted_total`, `unknown_cid_drops`, `route_hits`, `route_misses`)
-  - optional lightweight `drainEndpointEvents(): array` for operational events.
+- Phase 1:
+  - counters only are sufficient (no mandatory new event classes).
+- Phase 2:
+  - add endpoint-level observability surface:
+    - counters (`accepted_total`, `unknown_cid_drops`, `route_hits`, `route_misses`, `recv_drop_malformed`)
+    - optional lightweight `drainEndpointEvents(): array` for operational events.
 
 ## 6. Staged Release Plan
 
@@ -224,6 +250,9 @@ Exit criteria:
   - close removes registry mappings
 - `tests/083_server_endpoint_timeout_propagation.phpt`
   - endpoint timeout = min(connection timeouts), null behavior, aliases
+- `tests/084_server_endpoint_recv_error_policy.phpt`
+  - malformed/unknown network datagrams do not throw
+  - misuse/config errors still throw
 
 ### Integration PHPT (new)
 
@@ -233,6 +262,8 @@ Exit criteria:
   - mismatched CID packet is dropped and does not break active connections
 - `tests/132_integration_endpoint_reaccept_after_close.phpt`
   - connection close followed by successful new accept
+- `tests/133_integration_endpoint_noisy_input_resilience.phpt`
+  - noisy malformed traffic does not cause exception storm in main loop
 
 ### Compatibility checks
 
