@@ -131,7 +131,8 @@ try {
 
         $cpkt = stream_socket_recvfrom($clientSock, 65535, 0, $peer2);
         if (is_string($cpkt) && $cpkt !== '') {
-            $clientConn->recv(new Datagram($cpkt, $serverAddr));
+            $peerAddr = is_string($peer2) && $peer2 !== '' ? parseAddr($peer2) : $serverAddr;
+            $clientConn->recv(new Datagram($cpkt, $peerAddr));
         } else {
             $clientConn->onTimeout();
         }

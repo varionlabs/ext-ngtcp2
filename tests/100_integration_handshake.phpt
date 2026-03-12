@@ -31,6 +31,18 @@ use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\Datagram;
 use Varion\Nghttp2\Events\HandshakeCompleted;
 
+function parseAddr(string $peer): Address
+{
+    if (preg_match('/^\[(.+)\]:(\d+)$/', $peer, $m) === 1) {
+        return new Address($m[1], (int)$m[2]);
+    }
+    $pos = strrpos($peer, ':');
+    if ($pos === false) {
+        throw new RuntimeException("cannot parse address: {$peer}");
+    }
+    return new Address(substr($peer, 0, $pos), (int)substr($peer, $pos + 1));
+}
+
 function mktemp_dir(string $prefix): string
 {
     $base = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $prefix . bin2hex(random_bytes(6));
@@ -132,9 +144,10 @@ try {
         }
 
         if ($n > 0) {
-            $packet = stream_socket_recvfrom($udp, 65535);
+            $packet = stream_socket_recvfrom($udp, 65535, 0, $peer);
             if (is_string($packet) && $packet !== '') {
-                $connection->recv(new Datagram($packet, $remote));
+                $peerAddr = is_string($peer) && $peer !== '' ? parseAddr($peer) : $remote;
+                $connection->recv(new Datagram($packet, $peerAddr));
             }
         } else {
             $connection->onTimeout();
