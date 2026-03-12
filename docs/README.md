@@ -13,6 +13,8 @@
   - File-level checklist for native server mode MVP
 - `server_endpoint_plan.md`
   - Development plan for high-level `ServerEndpoint` / `ConnectionRegistry`
+- `server_config_plan.md`
+  - Expansion plan for `ServerConfig` taxonomy and builder growth
 
 ## Deferred feature tracks
 
