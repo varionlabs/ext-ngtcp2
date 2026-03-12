@@ -150,6 +150,9 @@ if ($udp === false) {
     throw new RuntimeException("failed to bind UDP socket: ({$errno}) {$errstr}");
 }
 stream_set_blocking($udp, false);
+// Single-socket demo: local address is constant for all received datagrams.
+$localName = stream_socket_get_name($udp, false);
+$local = Address::fromString($localName === false ? "{$host}:{$port}" : $localName);
 
 $endpoint = new ServerEndpoint(
     (new ServerConfig())
@@ -191,8 +194,6 @@ while (true) {
 
             if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
                 try {
-                    $localName = stream_socket_get_name($udp, false);
-                    $local = Address::fromString($localName === false ? "{$host}:{$port}" : $localName);
                     $endpoint->recv(new Datagram($packet, Address::fromString($from), $local));
                 } catch (LogicException|Error $e) {
                     throw $e;
