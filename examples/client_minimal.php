@@ -38,12 +38,12 @@ while (!$connection->isClosed()) {
         $connection->onTimeout();
     }
 
-    foreach ($connection->flush() as $outgoing) {
+    foreach ($connection->drainOutgoingDatagrams() as $outgoing) {
         $bytes = $outgoing->getPayload();
         stream_socket_sendto($udp, $bytes);
     }
 
-    foreach ($connection->pollEvents() as $event) {
+    foreach ($connection->drainEvents() as $event) {
         echo get_class($event), PHP_EOL;
     }
 }

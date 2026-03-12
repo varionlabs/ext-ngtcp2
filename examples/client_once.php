@@ -48,7 +48,7 @@ stream_set_blocking($udp, false);
 
 $deadline = microtime(true) + 8.0;
 while (microtime(true) < $deadline && !$connection->isClosed()) {
-    foreach ($connection->flush() as $outgoing) {
+    foreach ($connection->drainOutgoingDatagrams() as $outgoing) {
         stream_socket_sendto($udp, $outgoing->getPayload());
     }
 
@@ -69,7 +69,7 @@ while (microtime(true) < $deadline && !$connection->isClosed()) {
         $connection->onTimeout();
     }
 
-    foreach ($connection->pollEvents() as $event) {
+    foreach ($connection->drainEvents() as $event) {
         if ($event instanceof HandshakeCompleted && !$requestSent) {
             $stream = $connection->openStream();
             $stream->write("GET {$path}\n");

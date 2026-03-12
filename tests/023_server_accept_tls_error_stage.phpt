@@ -14,7 +14,7 @@ use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\ServerConnection;
 
 $client = new Connection(new Address('127.0.0.1', 4433));
-$initial = ($client->flush())[0] ?? null;
+$initial = ($client->drainOutgoingDatagrams())[0] ?? null;
 if ($initial === null) {
     throw new RuntimeException('failed to build initial datagram');
 }

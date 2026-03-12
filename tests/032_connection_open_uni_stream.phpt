@@ -34,10 +34,10 @@ var_dump($found->getId() === $s2->getId());
 var_dump($s1->write('abc') === 3);
 $s1->end("!");
 var_dump($s1->isWritable() === false);
-$out = $conn->flush();
+$out = $conn->drainOutgoingDatagrams();
 var_dump(is_array($out));
 
-$events = $conn->pollEvents();
+$events = $conn->drainEvents();
 var_dump($events[0] instanceof StreamOpened);
 var_dump($events[0]->isByPeer() === false);
 var_dump($events[1] instanceof StreamWritable);

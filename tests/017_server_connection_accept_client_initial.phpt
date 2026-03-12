@@ -14,7 +14,7 @@ use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\ServerConnection;
 
 $client = new Connection(new Address('127.0.0.1', 4433));
-$out = $client->flush();
+$out = $client->drainOutgoingDatagrams();
 $initial = $out[0] ?? null;
 
 var_dump($initial !== null);

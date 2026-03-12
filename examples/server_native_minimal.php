@@ -121,7 +121,7 @@ $server = ServerConnection::accept(
     ]
 );
 
-foreach ($server->flush() as $outgoing) {
+foreach ($server->drainOutgoingDatagrams() as $outgoing) {
     stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
 }
 
@@ -143,14 +143,14 @@ while (microtime(true) < $deadline && !$server->isClosed()) {
     }
 
     try {
-        foreach ($server->flush() as $outgoing) {
+        foreach ($server->drainOutgoingDatagrams() as $outgoing) {
             stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
         }
     } catch (Throwable $e) {
-        fwrite(STDERR, "flush warning: {$e->getMessage()}\n");
+        fwrite(STDERR, "drainOutgoingDatagrams warning: {$e->getMessage()}\n");
     }
 
-    foreach ($server->pollEvents() as $event) {
+    foreach ($server->drainEvents() as $event) {
         fwrite(STDERR, get_class($event) . PHP_EOL);
     }
 

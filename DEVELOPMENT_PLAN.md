@@ -8,7 +8,7 @@ v0 の実装範囲:
 - client API を正式サポート (stable)
 - GnuTLS backend only
 - bidirectional stream only
-- `Connection::recv() / onTimeout() / getNextTimeout() / pollEvents() / flush() / openStream() / close()`
+- `Connection::recv() / onTimeout() / getNextTimeout() / drainEvents() / drainOutgoingDatagrams() / openStream() / close()`
 - `Stream::read() / write() / end()`
 - イベント: `HandshakeCompleted`, `ConnectionClosed`, `StreamReadable`, `StreamWritable`, `StreamClosed`, `StreamReset`
 
@@ -27,9 +27,9 @@ v0 で後回し:
 ## 2. 設計原則 (SPEC反映)
 
 - `ngtcp2_conn` は拡張内部に閉じ込め、UDP socket と event loop はユーザーランド所有のままにする。
-- native callback から PHP callback を直接呼ばず、`internal event queue` に積んで `pollEvents()` で取り出す。
+- native callback から PHP callback を直接呼ばず、`internal event queue` に積んで `drainEvents()` で取り出す。
 - Stream payload は Event に直載せせず、内部 `rx buffer` に保持し `Stream::read()` で読む。
-- `flush()` は「送信可能な QUIC packet を生成して Datagram 配列で返す」責務に限定する。
+- `drainOutgoingDatagrams()` は「送信可能な QUIC packet を生成して Datagram 配列で返す」責務に限定する。
 - API は分岐判断に必要な最小限のみ公開し、transport 内部情報は隠蔽する。
 
 ## 3. サンプルコードからの取り込み方針
@@ -138,25 +138,25 @@ ext-ngtcp2/
 - callback 内で `StreamReadable/StreamClosed/StreamReset/HandshakeCompleted/ConnectionClosed` を queue push。
 
 完了条件:
-- 入力 datagram に応じて `pollEvents()` でイベントを取得できる。
+- 入力 datagram に応じて `drainEvents()` でイベントを取得できる。
 
-### Phase 4: 出力 (`flush`) と送信キュー
+### Phase 4: 出力 (`drainOutgoingDatagrams`) と送信キュー
 
 作業:
 - stream tx buffer を保持し `Stream::write()/end()` はバッファ投入のみ行う。
-- `Connection::flush()` で `ngtcp2_conn_writev_stream()` をループ実行。
+- `Connection::drainOutgoingDatagrams()` で `ngtcp2_conn_writev_stream()` をループ実行。
 - 生成 packet を `Datagram[]` として返却。
 - `NGTCP2_ERR_WRITE_MORE` と `wdatalen` 進行管理を実装。
 
 完了条件:
-- `write()` 後に `flush()` が 0個以上の datagram を返し、再呼び出しで drain できる。
+- `write()` 後に `drainOutgoingDatagrams()` が 0個以上の datagram を返し、再呼び出しで drain できる。
 
 ### Phase 5: timeout API
 
 作業:
 - `getNextTimeout(): ?int` を `ngtcp2_conn_get_expiry()` ベースで実装。
 - `onTimeout()` を `ngtcp2_conn_handle_expiry()` ベースで実装。
-- timeout 処理でも `flush()` と event queue の整合を維持。
+- timeout 処理でも `drainOutgoingDatagrams()` と event queue の整合を維持。
 
 完了条件:
 - ユーザーランド event loop から timeout 駆動で進行できる。
@@ -210,12 +210,12 @@ ext-ngtcp2/
 
 PHPT レイヤ:
 - API 署名/戻り値/例外の検証。
-- `pollEvents()` が FIFO 順で返ること。
+- `drainEvents()` が FIFO 順で返ること。
 - `StreamReadable` の payload 非同梱 (read で取得) 検証。
 - `StreamClosed` と `StreamReset` の区別検証。
 
 統合レイヤ:
-- UDP ソケットを PHP 側で所有し、`recv/pollEvents/flush/onTimeout` ループで handshake 進行確認。
+- UDP ソケットを PHP 側で所有し、`recv/drainEvents/drainOutgoingDatagrams/onTimeout` ループで handshake 進行確認。
 - 小さな payload と複数 packet payload の両方を確認。
 - close/draining 遷移確認。
 
@@ -232,7 +232,7 @@ mock 方針:
 - Stream object と native stream state の寿命不整合
   - 対策: stream state 実体を connection 側 HashTable へ一元化。
 - timeout 駆動の欠落
-  - 対策: `getNextTimeout()/onTimeout()/flush()` の順序を examples と tests で固定化。
+  - 対策: `getNextTimeout()/onTimeout()/drainOutgoingDatagrams()` の順序を examples と tests で固定化。
 
 ## 9. マイルストーン
 
@@ -254,7 +254,7 @@ mock 方針:
 ## 11. 進捗メモ (2026-03-11)
 
 完了済み:
-- Phase 0-5 相当の土台を実装済み (`recv`/`flush`/`pollEvents`/`timeout`/`close`)。
+- Phase 0-5 相当の土台を実装済み (`recv`/`drainOutgoingDatagrams`/`drainEvents`/`timeout`/`close`)。
 - `Varion\\Ngtcp2` 名前空間へ統一済み。
 - ngtcp2 + GnuTLS 連携で client 接続オブジェクトと callback 配線を実装済み。
 - `Stream::reset()` を `ngtcp2_conn_shutdown_stream()` に接続し、transport state と API state の乖離を解消。
@@ -262,7 +262,7 @@ mock 方針:
 - PHPT 8件が全件 PASS。
 - `gtlsserver` を使った integration handshake PHPT (`tests/100_integration_handshake.phpt`) を追加。
   UDP bind 制約環境では skip し、実行可能環境で handshake 完了を検証できる構成にした。
-- handshake 後の `openStream()/write()/end()/flush()` を検証する integration PHPT
+- handshake 後の `openStream()/write()/end()/drainOutgoingDatagrams()` を検証する integration PHPT
   (`tests/110_integration_stream_tx.phpt`) を追加。
 - `examples/server_minimal.php` を追加し、`gtlsserver` を起動する最小サーバーラッパーを実装。
 - `examples/README.md` を追加し、server/client の実行手順を明記。
@@ -293,7 +293,7 @@ mock 方針:
   `sample_server.c` との差分を縮小。
 - `tests/123_integration_native_server_close.phpt` を追加し、native server の `close()` が
   client 側の `ConnectionClosed`/`isClosed()` に伝播することを統合で検証。
-- close/draining 期間の `recv()/flush()/onTimeout()` で `ERR_CLOSING` / `ERR_DRAINING` を
+- close/draining 期間の `recv()/drainOutgoingDatagrams()/onTimeout()` で `ERR_CLOSING` / `ERR_DRAINING` を
   非致命扱いに統一し、イベントループの継続性を改善。
 - `ServerConnection::accept()` の失敗メッセージを段階別プレフィックス
   (`[decode]`, `[options]`, `[tls]`, `[ngtcp2:new]` など) へ整理。
@@ -305,7 +305,7 @@ mock 方針:
   `tests/025_server_accept_ngtcp2_new_error_stage.phpt` で
   `accept()` の `[ngtcp2:new]` 失敗段階を決定的に検証可能化。
 - `examples/server_native_minimal.php` / `examples/server_native_echo.php` で
-  close/draining 中の `recv/flush/onTimeout` 例外を警告ログ化し、ループ継続性を改善。
+  close/draining 中の `recv/drainOutgoingDatagrams/onTimeout` 例外を警告ログ化し、ループ継続性を改善。
 
 未着手/残課題:
 - server mode hardening (multi-connection/DCID map/Retry policy 等)
@@ -347,7 +347,7 @@ mock 方針:
 作業:
 - server mode 導入時の最小 API 草案を追記する。
   - 例: `ServerConnection` または `Connection::accept(...)` 系
-  - `recv/flush/pollEvents/onTimeout` の対称性維持
+  - `recv/drainOutgoingDatagrams/drainEvents/onTimeout` の対称性維持
 - client 実装と共有できる内部部品を整理する。
   - event queue / buffer / datagram 変換 / callback 登録
 - `sample_server.c` と現実装の差分一覧を作成する。

@@ -45,7 +45,7 @@ php examples/server_native_echo.php --host=127.0.0.1 --port=4433 --alpn=h3 --pre
 ```
 
 `server_native_minimal.php` / `server_native_echo.php` print `recv warning:`,
-`timeout warning:`, and `flush warning:` during close/draining transitions.
+`timeout warning:`, and `drainOutgoingDatagrams warning:` during close/draining transitions.
 These warnings are expected in the current MVP path and are non-fatal.
 
 This is still an MVP path and not feature-complete server mode.

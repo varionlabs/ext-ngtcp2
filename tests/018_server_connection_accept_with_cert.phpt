@@ -38,7 +38,7 @@ try {
     }
 
     $client = new Connection(new Address('127.0.0.1', 4433));
-    $initial = ($client->flush())[0] ?? null;
+    $initial = ($client->drainOutgoingDatagrams())[0] ?? null;
     var_dump($initial !== null);
 
     $server = ServerConnection::accept($initial, null, [
@@ -48,7 +48,7 @@ try {
     ]);
 
     var_dump($server instanceof ServerConnection);
-    var_dump(is_array($server->flush()));
+    var_dump(is_array($server->drainOutgoingDatagrams()));
 } finally {
     @unlink($cert);
     @unlink($key);

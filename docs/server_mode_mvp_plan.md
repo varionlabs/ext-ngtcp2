@@ -7,7 +7,7 @@ on top of the current stable client baseline.
 
 Enable one accepted QUIC server connection with:
 
-- `recv/flush/pollEvents/onTimeout/getNextTimeout/close`
+- `recv/drainOutgoingDatagrams/drainEvents/onTimeout/getNextTimeout/close`
 - single bidi stream RX/TX
 - existing event-queue model
 
@@ -32,7 +32,7 @@ Why:
 2. `src/internal/connection.h` / `src/connection.c`
 - Split native init into client/server variants.
 - Implement `php_quic_connection_init_native_server(...)` using `ngtcp2_conn_server_new`.
-- Reuse existing stream/event/timeout/flush machinery where possible.
+- Reuse existing stream/event/timeout/drainOutgoingDatagrams machinery where possible.
 
 3. `src/internal/callbacks.h` / `src/callbacks.c`
 - Keep common callback registration.

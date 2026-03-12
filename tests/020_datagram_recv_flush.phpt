@@ -1,5 +1,5 @@
 --TEST--
-recv with non-QUIC payload does not establish handshake and flush returns array
+recv with non-QUIC payload does not establish handshake and drainOutgoingDatagrams returns array
 --SKIPIF--
 <?php
 if (!extension_loaded('ngtcp2')) {
@@ -17,10 +17,10 @@ $remote = new Address('127.0.0.1', 4433);
 $conn = new Connection($remote);
 $conn->recv(new Datagram('dummy', $remote));
 
-$events = $conn->pollEvents();
+$events = $conn->drainEvents();
 var_dump($conn->isEstablished() === false);
 var_dump(count($events) === 0);
-var_dump(is_array($conn->flush()));
+var_dump(is_array($conn->drainOutgoingDatagrams()));
 ?>
 --EXPECT--
 bool(true)

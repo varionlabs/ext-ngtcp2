@@ -119,7 +119,7 @@ try {
     $deadline = microtime(true) + 6.0;
 
     while (microtime(true) < $deadline && !$connection->isClosed()) {
-        foreach ($connection->flush() as $dgram) {
+        foreach ($connection->drainOutgoingDatagrams() as $dgram) {
             stream_socket_sendto($udp, $dgram->getPayload());
         }
 
@@ -140,7 +140,7 @@ try {
             $connection->onTimeout();
         }
 
-        foreach ($connection->pollEvents() as $event) {
+        foreach ($connection->drainEvents() as $event) {
             if ($event instanceof HandshakeCompleted) {
                 $handshakeCompleted = true;
                 break 2;

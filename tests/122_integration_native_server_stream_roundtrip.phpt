@@ -99,12 +99,12 @@ try {
     $deadline = microtime(true) + 10.0;
 
     while (microtime(true) < $deadline && !$clientConn->isClosed()) {
-        foreach ($clientConn->flush() as $dgram) {
+        foreach ($clientConn->drainOutgoingDatagrams() as $dgram) {
             stream_socket_sendto($clientSock, $dgram->getPayload());
         }
 
         if ($serverConn instanceof ServerConnection) {
-            foreach ($serverConn->flush() as $dgram) {
+            foreach ($serverConn->drainOutgoingDatagrams() as $dgram) {
                 stream_socket_sendto($serverSock, $dgram->getPayload(), 0, (string)$serverPeer);
             }
         }
@@ -136,7 +136,7 @@ try {
             $clientConn->onTimeout();
         }
 
-        foreach ($clientConn->pollEvents() as $event) {
+        foreach ($clientConn->drainEvents() as $event) {
             if ($event instanceof HandshakeCompleted) {
                 $clientHs = true;
             }
@@ -152,7 +152,7 @@ try {
         }
 
         if ($serverConn instanceof ServerConnection) {
-            foreach ($serverConn->pollEvents() as $event) {
+            foreach ($serverConn->drainEvents() as $event) {
                 if ($event instanceof HandshakeCompleted) {
                     $serverHs = true;
                 }

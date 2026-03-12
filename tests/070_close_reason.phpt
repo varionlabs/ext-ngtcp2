@@ -15,7 +15,7 @@ use Varion\Nghttp2\Events\ConnectionClosed;
 
 $conn = new Connection(new Address('127.0.0.1', 4433));
 $conn->close(77, 'normal-close');
-$events = $conn->pollEvents();
+$events = $conn->drainEvents();
 $event = $events[0] ?? null;
 
 var_dump($event instanceof ConnectionClosed);

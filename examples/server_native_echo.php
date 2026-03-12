@@ -140,7 +140,7 @@ while (!$server->isClosed()) {
         }
     }
 
-    foreach ($server->pollEvents() as $event) {
+    foreach ($server->drainEvents() as $event) {
         if ($event instanceof StreamReadable) {
             $stream = $server->getStream($event->getStreamId());
             if ($stream === null) {
@@ -163,11 +163,11 @@ while (!$server->isClosed()) {
     }
 
     try {
-        foreach ($server->flush() as $outgoing) {
+        foreach ($server->drainOutgoingDatagrams() as $outgoing) {
             stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
         }
     } catch (Throwable $e) {
-        fwrite(STDERR, "flush warning: {$e->getMessage()}\n");
+        fwrite(STDERR, "drainOutgoingDatagrams warning: {$e->getMessage()}\n");
     }
 
     usleep(10000);

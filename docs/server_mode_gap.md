@@ -26,7 +26,7 @@ Already aligned or partially reusable:
 - callback patterns (`handshake_completed`, `stream_open`, `stream_close`, `recv_stream_data`)
 - stream write path (`ngtcp2_conn_writev_stream`)
 - timeout handling (`ngtcp2_conn_get_expiry`, `ngtcp2_conn_handle_expiry`)
-- event-queue conversion model (callback -> queue -> `pollEvents()`)
+- event-queue conversion model (callback -> queue -> `drainEvents()`)
 
 ## Minimal native server MVP scope
 
@@ -50,8 +50,8 @@ Option B (factory on current class):
 Either option should keep these methods symmetric:
 
 - `recv(Datagram $dgram): void`
-- `flush(): array`
-- `pollEvents(): array`
+- `drainOutgoingDatagrams(): array`
+- `drainEvents(): array`
 - `getNextTimeout(): ?int`
 - `onTimeout(): void`
 - `close(int $errorCode = 0, string $reason = ''): void`

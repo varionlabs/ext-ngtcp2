@@ -15,10 +15,10 @@ use Varion\Nghttp2\Events\StreamReset;
 
 $conn = new Connection(new Address('127.0.0.1', 4433));
 $stream = $conn->openStream();
-$conn->pollEvents();
+$conn->drainEvents();
 
 $stream->reset(42);
-$events = $conn->pollEvents();
+$events = $conn->drainEvents();
 $event = $events[0] ?? null;
 
 var_dump($event instanceof StreamReset);

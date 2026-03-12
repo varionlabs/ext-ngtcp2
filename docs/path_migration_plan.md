@@ -26,7 +26,7 @@ Optional event exposure (minimal):
   - `ngtcp2_conn_initiate_migration(...)`
   - or `ngtcp2_conn_initiate_immediate_migration(...)`
 - Ensure callback wiring for path validation result if exposed.
-- Keep `recv()/flush()/onTimeout()` flow unchanged during migration.
+- Keep `recv()/drainOutgoingDatagrams()/onTimeout()` flow unchanged during migration.
 
 ## sample/client references
 

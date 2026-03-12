@@ -23,7 +23,7 @@ Design rule:
 - Enable DATAGRAM transport parameter during connection init.
 - Register DATAGRAM receive callback in ngtcp2 callbacks.
 - Add per-connection RX datagram queue.
-- Add send path wiring in `flush()` progression.
+- Add send path wiring in `drainOutgoingDatagrams()` progression.
 
 ## Tests
 

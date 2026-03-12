@@ -1,5 +1,5 @@
 --TEST--
-integration stream write and flush after handshake
+integration stream write and drainOutgoingDatagrams after handshake
 --SKIPIF--
 <?php
 if (!extension_loaded('ngtcp2')) {
@@ -119,7 +119,7 @@ try {
     $deadline = microtime(true) + 6.0;
 
     while (microtime(true) < $deadline && !$connection->isClosed()) {
-        foreach ($connection->flush() as $dgram) {
+        foreach ($connection->drainOutgoingDatagrams() as $dgram) {
             stream_socket_sendto($udp, $dgram->getPayload());
         }
 
@@ -140,7 +140,7 @@ try {
             $connection->onTimeout();
         }
 
-        foreach ($connection->pollEvents() as $event) {
+        foreach ($connection->drainEvents() as $event) {
             if ($event instanceof HandshakeCompleted) {
                 $handshakeCompleted = true;
                 break 2;
@@ -154,7 +154,7 @@ try {
 
     $stream = $connection->openStream();
     $written = $stream->write("hello-from-php-ext\n");
-    $outgoing = $connection->flush();
+    $outgoing = $connection->drainOutgoingDatagrams();
 
     var_dump($handshakeCompleted);
     var_dump($stream->getId() >= 0);

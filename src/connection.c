@@ -387,11 +387,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_get_next_timeout, 0, 
                                         IS_LONG, 1)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_poll_events, 0, 0,
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_drain_events, 0, 0,
                                         IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_flush, 0, 0, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_drain_outgoing_datagrams, 0, 0,
+                                        IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_connection_open_stream, 0, 0,
@@ -631,7 +632,7 @@ PHP_METHOD(Ngtcp2_Connection, getNextTimeout) {
   RETURN_LONG((zend_long)((expiry - now) / NGTCP2_MILLISECONDS));
 }
 
-PHP_METHOD(Ngtcp2_Connection, pollEvents) {
+PHP_METHOD(Ngtcp2_Connection, drainEvents) {
   php_quic_connection *connection;
   php_quic_event event;
   zval event_zv;
@@ -648,7 +649,7 @@ PHP_METHOD(Ngtcp2_Connection, pollEvents) {
   }
 }
 
-PHP_METHOD(Ngtcp2_Connection, flush) {
+PHP_METHOD(Ngtcp2_Connection, drainOutgoingDatagrams) {
   php_quic_connection *connection;
   uint8_t buf[1452];
   ngtcp2_path_storage ps;
@@ -989,8 +990,9 @@ static const zend_function_entry php_quic_connection_methods[] = {
   PHP_ME(Ngtcp2_Connection, onTimeout, arginfo_connection_no_args, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, getNextTimeout, arginfo_connection_get_next_timeout,
          ZEND_ACC_PUBLIC)
-  PHP_ME(Ngtcp2_Connection, pollEvents, arginfo_connection_poll_events, ZEND_ACC_PUBLIC)
-  PHP_ME(Ngtcp2_Connection, flush, arginfo_connection_flush, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, drainEvents, arginfo_connection_drain_events, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, drainOutgoingDatagrams,
+         arginfo_connection_drain_outgoing_datagrams, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, openStream, arginfo_connection_open_stream, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, openUniStream, arginfo_connection_open_uni_stream,
          ZEND_ACC_PUBLIC)
