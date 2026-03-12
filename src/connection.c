@@ -100,7 +100,8 @@ static int php_quic_connection_handle_timers(php_quic_connection *connection) {
 }
 
 static zend_bool php_quic_connection_is_nonfatal_closing_error(int rv) {
-  return rv == NGTCP2_ERR_CLOSING || rv == NGTCP2_ERR_DRAINING;
+  return rv == NGTCP2_ERR_CLOSING || rv == NGTCP2_ERR_DRAINING ||
+         rv == NGTCP2_ERR_IDLE_CLOSE;
 }
 
 static ngtcp2_conn *php_quic_get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
