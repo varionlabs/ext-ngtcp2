@@ -7,16 +7,18 @@
 
 #include "internal/tls.h"
 
-int php_quic_tls_gnutls_init_client(php_quic_connection *connection) {
+int php_quic_tls_gnutls_init_client(php_quic_connection *connection,
+                                    const char *alpn) {
   static const char priority[] =
     "NORMAL:-VERS-ALL:+VERS-TLS1.3:-CIPHER-ALL:+AES-128-GCM:+AES-256-GCM:"
     "+CHACHA20-POLY1305:+AES-128-CCM:-GROUP-ALL:+GROUP-SECP256R1:+GROUP-X25519:"
     "+GROUP-SECP384R1:+GROUP-SECP521R1:%DISABLE_TLS13_COMPAT_MODE";
-  gnutls_datum_t alpn = {
-    .data = (unsigned char *)"h3",
-    .size = 2,
-  };
+  gnutls_datum_t alpn_proto;
   int rv;
+
+  if (alpn == NULL || alpn[0] == '\0') {
+    alpn = "h3";
+  }
 
   rv = gnutls_certificate_allocate_credentials(&connection->cred);
   if (rv != 0) {
@@ -70,7 +72,10 @@ int php_quic_tls_gnutls_init_client(php_quic_connection *connection) {
     return FAILURE;
   }
 
-  rv = gnutls_alpn_set_protocols(connection->session, &alpn, 1, GNUTLS_ALPN_MANDATORY);
+  alpn_proto.data = (unsigned char *)alpn;
+  alpn_proto.size = strlen(alpn);
+  rv = gnutls_alpn_set_protocols(connection->session, &alpn_proto, 1,
+                                 GNUTLS_ALPN_MANDATORY);
   if (rv != 0) {
     php_error_docref(NULL, E_WARNING, "gnutls_alpn_set_protocols failed: %s",
                      gnutls_strerror(rv));

@@ -3,7 +3,8 @@
 
 #include "types.h"
 
-int php_quic_tls_gnutls_init_client(php_quic_connection *connection);
+int php_quic_tls_gnutls_init_client(php_quic_connection *connection,
+                                    const char *alpn);
 int php_quic_tls_gnutls_init_server(php_quic_connection *connection,
                                     const char *cert_file,
                                     const char *key_file,

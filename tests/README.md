@@ -22,7 +22,7 @@ If any prerequisite is unavailable, tests intentionally return `skip`.
 Run unit-like PHPT tests:
 
 ```sh
-NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/001_load_extension.phpt tests/010_connection_ctor.phpt tests/020_datagram_recv_flush.phpt tests/030_stream_read_write_end.phpt tests/031_connection_get_stream.phpt tests/040_event_queue.phpt tests/041_event_abstract_base.phpt tests/050_timeout.phpt tests/060_stream_reset.phpt tests/070_close_reason.phpt'
+NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/001_load_extension.phpt tests/010_connection_ctor.phpt tests/011_datagram_metadata.phpt tests/012_connection_client_config.phpt tests/020_datagram_recv_flush.phpt tests/030_stream_read_write_end.phpt tests/031_connection_get_stream.phpt tests/040_event_queue.phpt tests/041_event_abstract_base.phpt tests/050_timeout.phpt tests/060_stream_reset.phpt tests/070_close_reason.phpt'
 ```
 
 Run server API PHPT tests:

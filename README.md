@@ -64,6 +64,7 @@ For integration tests and server-focused test groups, see [`tests/README.md`](te
 Core classes:
 
 - `Varion\\Ngtcp2\\Address`
+- `Varion\\Ngtcp2\\ClientConfig`
 - `Varion\\Ngtcp2\\Datagram`
 - `Varion\\Ngtcp2\\Connection`
 - `Varion\\Ngtcp2\\ServerConnection` (experimental)

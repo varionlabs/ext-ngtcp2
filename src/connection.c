@@ -24,7 +24,9 @@
 #include "internal/tls.h"
 
 zend_class_entry *php_quic_connection_ce;
+static zend_class_entry *php_quic_client_config_ce;
 static zend_object_handlers php_quic_connection_handlers;
+static zend_object_handlers php_quic_client_config_handlers;
 
 static ngtcp2_tstamp php_quic_timestamp(void) {
   return (ngtcp2_tstamp)zend_hrtime();
@@ -76,6 +78,17 @@ static int php_quic_default_local_addr(int family, struct sockaddr_storage *stor
   }
 
   return SUCCESS;
+}
+
+static void php_quic_set_nullable_string(zend_string **target, zend_string *value) {
+  if (*target != NULL) {
+    zend_string_release(*target);
+    *target = NULL;
+  }
+
+  if (value != NULL) {
+    *target = zend_string_copy(value);
+  }
 }
 
 static void php_quic_stream_entry_ptr_dtor(zval *zv) {
@@ -370,10 +383,205 @@ php_quic_stream_entry *php_quic_connection_open_stream_entry(
   return entry;
 }
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_client_config_construct, 0, 0, 0)
+  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
+  ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, serverName, IS_STRING, 1, "null")
+  ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, alpn, IS_STRING, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_client_config_with_local_address, 0, 1,
+                                       Varion\\Ngtcp2\\ClientConfig, 0)
+  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_client_config_with_server_name, 0, 1,
+                                       Varion\\Ngtcp2\\ClientConfig, 0)
+  ZEND_ARG_TYPE_INFO(0, serverName, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_client_config_with_alpn, 0, 1,
+                                       Varion\\Ngtcp2\\ClientConfig, 0)
+  ZEND_ARG_TYPE_INFO(0, alpn, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_client_config_get_local_address, 0, 0,
+                                       Varion\\Ngtcp2\\Address, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_client_config_get_server_name, 0, 0,
+                                        IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_client_config_get_alpn, 0, 0, IS_STRING,
+                                        1)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(Ngtcp2_ClientConfig, __construct) {
+  php_quic_client_config *config = Z_QUIC_CLIENT_CONFIG_P(ZEND_THIS);
+  zval *local_address = NULL;
+  zend_string *server_name = NULL;
+  zend_string *alpn = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(0, 3)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(local_address, php_quic_address_ce)
+    Z_PARAM_STR_OR_NULL(server_name)
+    Z_PARAM_STR_OR_NULL(alpn)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (server_name != NULL && ZSTR_LEN(server_name) == 0) {
+    zend_argument_value_error(2, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+
+  if (alpn != NULL && ZSTR_LEN(alpn) == 0) {
+    zend_argument_value_error(3, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+
+  if (!Z_ISUNDEF(config->local_address)) {
+    zval_ptr_dtor(&config->local_address);
+  }
+  if (local_address != NULL) {
+    ZVAL_COPY(&config->local_address, local_address);
+  } else {
+    ZVAL_NULL(&config->local_address);
+  }
+
+  php_quic_set_nullable_string(&config->server_name, server_name);
+  php_quic_set_nullable_string(&config->alpn, alpn);
+}
+
+PHP_METHOD(Ngtcp2_ClientConfig, withLocalAddress) {
+  php_quic_client_config *config = Z_QUIC_CLIENT_CONFIG_P(ZEND_THIS);
+  zval *local_address = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(local_address, php_quic_address_ce)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (!Z_ISUNDEF(config->local_address)) {
+    zval_ptr_dtor(&config->local_address);
+  }
+  if (local_address != NULL) {
+    ZVAL_COPY(&config->local_address, local_address);
+  } else {
+    ZVAL_NULL(&config->local_address);
+  }
+
+  RETURN_ZVAL(ZEND_THIS, 1, 0);
+}
+
+PHP_METHOD(Ngtcp2_ClientConfig, withServerName) {
+  php_quic_client_config *config = Z_QUIC_CLIENT_CONFIG_P(ZEND_THIS);
+  zend_string *server_name = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR_OR_NULL(server_name)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (server_name != NULL && ZSTR_LEN(server_name) == 0) {
+    zend_argument_value_error(1, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+
+  php_quic_set_nullable_string(&config->server_name, server_name);
+  RETURN_ZVAL(ZEND_THIS, 1, 0);
+}
+
+PHP_METHOD(Ngtcp2_ClientConfig, withAlpn) {
+  php_quic_client_config *config = Z_QUIC_CLIENT_CONFIG_P(ZEND_THIS);
+  zend_string *alpn = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR_OR_NULL(alpn)
+  ZEND_PARSE_PARAMETERS_END();
+
+  if (alpn != NULL && ZSTR_LEN(alpn) == 0) {
+    zend_argument_value_error(1, "must be a non-empty string or null");
+    RETURN_THROWS();
+  }
+
+  php_quic_set_nullable_string(&config->alpn, alpn);
+  RETURN_ZVAL(ZEND_THIS, 1, 0);
+}
+
+PHP_METHOD(Ngtcp2_ClientConfig, getLocalAddress) {
+  php_quic_client_config *config = Z_QUIC_CLIENT_CONFIG_P(ZEND_THIS);
+  RETURN_COPY(&config->local_address);
+}
+
+PHP_METHOD(Ngtcp2_ClientConfig, getServerName) {
+  php_quic_client_config *config = Z_QUIC_CLIENT_CONFIG_P(ZEND_THIS);
+
+  if (config->server_name == NULL) {
+    RETURN_NULL();
+  }
+
+  RETURN_STR_COPY(config->server_name);
+}
+
+PHP_METHOD(Ngtcp2_ClientConfig, getAlpn) {
+  php_quic_client_config *config = Z_QUIC_CLIENT_CONFIG_P(ZEND_THIS);
+
+  if (config->alpn == NULL) {
+    RETURN_NULL();
+  }
+
+  RETURN_STR_COPY(config->alpn);
+}
+
+static const zend_function_entry php_quic_client_config_methods[] = {
+  PHP_ME(Ngtcp2_ClientConfig, __construct, arginfo_client_config_construct, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ClientConfig, withLocalAddress, arginfo_client_config_with_local_address,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ClientConfig, withServerName, arginfo_client_config_with_server_name,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ClientConfig, withAlpn, arginfo_client_config_with_alpn, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ClientConfig, getLocalAddress, arginfo_client_config_get_local_address,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ClientConfig, getServerName, arginfo_client_config_get_server_name,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_ClientConfig, getAlpn, arginfo_client_config_get_alpn, ZEND_ACC_PUBLIC)
+  PHP_FE_END
+};
+
+static zend_object *php_quic_client_config_create_object(zend_class_entry *ce) {
+  php_quic_client_config *config;
+
+  config = zend_object_alloc(sizeof(*config), ce);
+  ZVAL_UNDEF(&config->local_address);
+  ZVAL_NULL(&config->local_address);
+  config->server_name = NULL;
+  config->alpn = NULL;
+
+  zend_object_std_init(&config->std, ce);
+  object_properties_init(&config->std, ce);
+  config->std.handlers = &php_quic_client_config_handlers;
+
+  return &config->std;
+}
+
+static void php_quic_client_config_free_object(zend_object *object) {
+  php_quic_client_config *config;
+
+  config = (php_quic_client_config *)((char *)object -
+                                      XtOffsetOf(php_quic_client_config, std));
+
+  if (!Z_ISUNDEF(config->local_address)) {
+    zval_ptr_dtor(&config->local_address);
+    ZVAL_UNDEF(&config->local_address);
+  }
+
+  php_quic_set_nullable_string(&config->server_name, NULL);
+  php_quic_set_nullable_string(&config->alpn, NULL);
+
+  zend_object_std_dtor(&config->std);
+}
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_connection_construct, 0, 0, 1)
   ZEND_ARG_OBJ_INFO(0, remoteAddress, Varion\\Ngtcp2\\Address, 0)
-  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, localAddress, Varion\\Ngtcp2\\Address, 1, "null")
-  ZEND_ARG_ARRAY_INFO(0, options, 1)
+  ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, config, Varion\\Ngtcp2\\ClientConfig, 1, "null")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_connection_recv, 0, 0, 1)
@@ -426,20 +634,29 @@ ZEND_END_ARG_INFO()
 PHP_METHOD(Ngtcp2_Connection, __construct) {
   php_quic_connection *connection;
   zval *remote_address;
+  zval *config_zv = NULL;
+  php_quic_client_config *config = NULL;
   zval *local_address = NULL;
-  zval *options = NULL;
   php_quic_address *remote_address_obj;
-  const char *sni;
+  const char *sni = NULL;
+  const char *alpn = "h3";
   int rv;
 
-  ZEND_PARSE_PARAMETERS_START(1, 3)
+  ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_OBJECT_OF_CLASS(remote_address, php_quic_address_ce)
     Z_PARAM_OPTIONAL
-    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(local_address, php_quic_address_ce)
-    Z_PARAM_ARRAY_OR_NULL(options)
+    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(config_zv, php_quic_client_config_ce)
   ZEND_PARSE_PARAMETERS_END();
 
-  (void)options;
+  if (config_zv != NULL) {
+    config = Z_QUIC_CLIENT_CONFIG_P(config_zv);
+    if (Z_TYPE(config->local_address) == IS_OBJECT) {
+      local_address = &config->local_address;
+    }
+    if (config->alpn != NULL) {
+      alpn = ZSTR_VAL(config->alpn);
+    }
+  }
 
   connection = Z_QUIC_CONNECTION_P(ZEND_THIS);
 
@@ -481,16 +698,21 @@ PHP_METHOD(Ngtcp2_Connection, __construct) {
   connection->conn_ref.get_conn = php_quic_get_conn;
   connection->conn_ref.user_data = connection;
 
-  if (connection->session == NULL && php_quic_tls_gnutls_init_client(connection) != SUCCESS) {
+  if (connection->session == NULL &&
+      php_quic_tls_gnutls_init_client(connection, alpn) != SUCCESS) {
     zend_throw_exception(zend_ce_exception,
                          "Failed to initialize GnuTLS for QUIC connection", 0);
     RETURN_THROWS();
   }
 
-  remote_address_obj = Z_QUIC_ADDRESS_P(&connection->remote_address_zv);
-  sni = ZSTR_VAL(remote_address_obj->host);
-  if (php_quic_is_numeric_host(sni)) {
-    sni = "localhost";
+  if (config != NULL && config->server_name != NULL) {
+    sni = ZSTR_VAL(config->server_name);
+  } else {
+    remote_address_obj = Z_QUIC_ADDRESS_P(&connection->remote_address_zv);
+    sni = ZSTR_VAL(remote_address_obj->host);
+    if (php_quic_is_numeric_host(sni)) {
+      sni = "localhost";
+    }
   }
 
   if (sni != NULL && sni[0] != '\0') {
@@ -1074,6 +1296,16 @@ static void php_quic_connection_free_object(zend_object *object) {
 
 int php_ngtcp2_connection_init(INIT_FUNC_ARGS) {
   zend_class_entry ce;
+
+  INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "ClientConfig",
+                      php_quic_client_config_methods);
+  php_quic_client_config_ce = zend_register_internal_class(&ce);
+  php_quic_client_config_ce->create_object = php_quic_client_config_create_object;
+
+  memcpy(&php_quic_client_config_handlers, zend_get_std_object_handlers(),
+         sizeof(zend_object_handlers));
+  php_quic_client_config_handlers.offset = XtOffsetOf(php_quic_client_config, std);
+  php_quic_client_config_handlers.free_obj = php_quic_client_config_free_object;
 
   INIT_NS_CLASS_ENTRY(ce, "Varion\\Ngtcp2", "Connection", php_quic_connection_methods);
   php_quic_connection_ce = zend_register_internal_class(&ce);

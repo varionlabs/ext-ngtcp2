@@ -81,6 +81,13 @@ typedef struct _php_quic_connection {
   zend_object std;
 } php_quic_connection;
 
+typedef struct _php_quic_client_config {
+  zval local_address;
+  zend_string *server_name;
+  zend_string *alpn;
+  zend_object std;
+} php_quic_client_config;
+
 typedef struct _php_quic_stream {
   zval connection;
   int64_t stream_id;
