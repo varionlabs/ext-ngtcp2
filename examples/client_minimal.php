@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Varion\Ngtcp2\Address;
+use Varion\Ngtcp2\ClientConfig;
 use Varion\Ngtcp2\Connection;
 use Varion\Ngtcp2\Datagram;
 
@@ -21,9 +22,18 @@ function parsePeerAddress(string $peer): Address
 }
 
 $remote = new Address('127.0.0.1', 4433);
-$connection = new Connection($remote);
+$config = (new ClientConfig())
+    ->withServerName($remote->getHost())
+    ->withAlpn('h3');
+$connection = new Connection($remote, $config);
 
-$udp = stream_socket_client('udp://127.0.0.1:4433', $errno, $errstr, 1, STREAM_CLIENT_CONNECT);
+$udp = stream_socket_client(
+    sprintf('udp://%s:%d', $remote->getHost(), $remote->getPort()),
+    $errno,
+    $errstr,
+    1,
+    STREAM_CLIENT_CONNECT
+);
 if ($udp === false) {
     throw new RuntimeException("UDP socket error: {$errno} {$errstr}");
 }
@@ -46,16 +56,22 @@ while (!$connection->isClosed()) {
     if ($n > 0) {
         $packet = stream_socket_recvfrom($udp, 65535, 0, $peer);
         if (is_string($packet) && $packet !== '') {
-            $peerAddress = is_string($peer) && $peer !== '' ? parsePeerAddress($peer) : $remote;
-            $connection->recv(new Datagram($packet, $peerAddress));
+            if (!is_string($peer) || $peer === '') {
+                throw new RuntimeException('recvfrom returned packet without peer address');
+            }
+            $connection->recv(new Datagram($packet, parsePeerAddress($peer)));
         }
     } else {
         $connection->onTimeout();
     }
 
     foreach ($connection->drainOutgoingDatagrams() as $outgoing) {
-        $bytes = $outgoing->getPayload();
-        stream_socket_sendto($udp, $bytes);
+        stream_socket_sendto(
+            $udp,
+            $outgoing->getPayload(),
+            0,
+            (string)$outgoing->getPeerAddress()
+        );
     }
 
     foreach ($connection->drainEvents() as $event) {
