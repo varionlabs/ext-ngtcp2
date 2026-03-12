@@ -175,6 +175,10 @@ while (true) {
         sendDatagram($udp, $outgoing);
     }
 
+    foreach ($endpoint->drainEvents() as $event) {
+        fwrite(STDERR, "endpoint event=" . get_class($event) . PHP_EOL);
+    }
+
     foreach ($active as $id => $conn) {
         foreach ($conn->drainEvents() as $event) {
             fwrite(STDERR, "conn={$id} event=" . get_class($event) . PHP_EOL);
