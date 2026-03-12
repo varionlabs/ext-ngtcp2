@@ -218,6 +218,62 @@ final class ServerEndpoint
     - keep public events user-meaningful (not internal implementation-only notifications)
     - document criteria for new event types before adding them
 
+### Public event boundary (important)
+
+`drainEvents()` should expose application-meaningful lifecycle milestones, not transport internals.
+
+Design rule:
+
+- Public events:
+  - represent decisions or milestones that userland can act on
+  - remain stable even if internal transport mechanics evolve
+- Internal events:
+  - may exist for implementation/diagnostics
+  - should not be surfaced directly as public API types by default
+
+Avoid exposing internal-only transport signals such as:
+
+- `PacketNumberSpaceUpdated`
+- `AckElicitedPacketSent`
+- `LossTimerArmed`
+
+Prefer user-meaningful events such as:
+
+- `HandshakeCompleted`
+- `ConnectionReady` (future candidate)
+- `ConnectionClosed`
+- `PeerAddressChanged` (future candidate)
+- `StreamOpened`
+- `StreamReadable`
+- `StreamWritable`
+- `StreamClosed`
+
+### Event class staging table
+
+Stable (existing / suitable public API):
+
+- `HandshakeCompleted`
+- `ConnectionClosed`
+- `ConnectionDraining`
+- `StreamOpened`
+- `StreamReadable`
+- `StreamWritable`
+- `StreamClosed`
+- `StreamReset`
+
+Deferred (candidate public events, design review required):
+
+- `ConnectionReady`
+- `PeerAddressChanged`
+- `DatagramReceived`
+- `TlsAlertReceived`
+
+Internal-only (default):
+
+- packet-number-space transitions
+- loss-timer arm/disarm notifications
+- ack-eliciting packet accounting
+
 ## 6. Staged Release Plan
 
 ### Phase 1 (MVP)
