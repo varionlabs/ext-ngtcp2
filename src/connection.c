@@ -4,6 +4,7 @@
 
 #include <arpa/inet.h>
 #include <inttypes.h>
+#include <sys/time.h>
 #include <string.h>
 
 #include <Zend/zend_exceptions.h>
@@ -27,9 +28,75 @@ zend_class_entry *php_quic_connection_ce;
 static zend_class_entry *php_quic_client_config_ce;
 static zend_object_handlers php_quic_connection_handlers;
 static zend_object_handlers php_quic_client_config_handlers;
+static zend_bool php_quic_connection_is_nonfatal_closing_error(int rv);
+static void php_quic_connection_sync_state(php_quic_connection *connection);
+static void php_quic_connection_throw_ngtcp2_error(int rv, const char *context);
 
 static ngtcp2_tstamp php_quic_timestamp(void) {
   return (ngtcp2_tstamp)zend_hrtime();
+}
+
+static zend_long php_quic_epoch_milliseconds(void) {
+  struct timeval tv;
+
+  if (gettimeofday(&tv, NULL) != 0) {
+    return 0;
+  }
+
+  return (zend_long)tv.tv_sec * 1000 + (zend_long)(tv.tv_usec / 1000);
+}
+
+static zend_bool php_quic_connection_get_next_expiry(php_quic_connection *connection,
+                                                     ngtcp2_tstamp *now,
+                                                     ngtcp2_tstamp *expiry) {
+  if (connection->conn == NULL || connection->closed) {
+    return 0;
+  }
+
+  *now = php_quic_timestamp();
+  *expiry = ngtcp2_conn_get_expiry(connection->conn);
+  return 1;
+}
+
+static zend_long php_quic_connection_get_next_timeout_ms(php_quic_connection *connection,
+                                                         zend_bool *has_timeout) {
+  ngtcp2_tstamp now;
+  ngtcp2_tstamp expiry;
+
+  if (!php_quic_connection_get_next_expiry(connection, &now, &expiry)) {
+    *has_timeout = 0;
+    return 0;
+  }
+
+  *has_timeout = 1;
+  if (expiry <= now) {
+    return 0;
+  }
+
+  return (zend_long)((expiry - now) / NGTCP2_MILLISECONDS);
+}
+
+static int php_quic_connection_handle_timers(php_quic_connection *connection) {
+  int rv;
+
+  if (connection->conn == NULL || connection->closed) {
+    return SUCCESS;
+  }
+
+  rv = ngtcp2_conn_handle_expiry(connection->conn, php_quic_timestamp());
+  if (rv != 0) {
+    if (php_quic_connection_is_nonfatal_closing_error(rv)) {
+      php_quic_connection_sync_state(connection);
+      return SUCCESS;
+    }
+
+    ngtcp2_ccerr_set_liberr(&connection->last_error, rv, NULL, 0);
+    php_quic_connection_throw_ngtcp2_error(rv, "ngtcp2_conn_handle_expiry");
+    return FAILURE;
+  }
+
+  php_quic_connection_sync_state(connection);
+  return SUCCESS;
 }
 
 static zend_bool php_quic_connection_is_nonfatal_closing_error(int rv) {
@@ -595,6 +662,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_get_next_timeout, 0, 
                                         IS_LONG, 1)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_get_next_expiry, 0, 0,
+                                        IS_LONG, 1)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_connection_drain_events, 0, 0,
                                         IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -808,50 +879,62 @@ PHP_METHOD(Ngtcp2_Connection, recv) {
 
 PHP_METHOD(Ngtcp2_Connection, onTimeout) {
   php_quic_connection *connection;
-  int rv;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   connection = Z_QUIC_CONNECTION_P(ZEND_THIS);
-  if (connection->conn == NULL || connection->closed) {
-    return;
-  }
-
-  rv = ngtcp2_conn_handle_expiry(connection->conn, php_quic_timestamp());
-  if (rv != 0) {
-    if (php_quic_connection_is_nonfatal_closing_error(rv)) {
-      php_quic_connection_sync_state(connection);
-      return;
-    }
-
-    ngtcp2_ccerr_set_liberr(&connection->last_error, rv, NULL, 0);
-    php_quic_connection_throw_ngtcp2_error(rv, "ngtcp2_conn_handle_expiry");
+  if (php_quic_connection_handle_timers(connection) != SUCCESS) {
     RETURN_THROWS();
   }
-
-  php_quic_connection_sync_state(connection);
 }
 
 PHP_METHOD(Ngtcp2_Connection, getNextTimeout) {
   php_quic_connection *connection;
-  ngtcp2_tstamp now;
-  ngtcp2_tstamp expiry;
+  zend_bool has_timeout;
+  zend_long timeout_ms;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   connection = Z_QUIC_CONNECTION_P(ZEND_THIS);
-  if (connection->conn == NULL || connection->closed) {
+  timeout_ms = php_quic_connection_get_next_timeout_ms(connection, &has_timeout);
+  if (!has_timeout) {
     RETURN_NULL();
   }
 
-  expiry = ngtcp2_conn_get_expiry(connection->conn);
-  now = php_quic_timestamp();
+  RETURN_LONG(timeout_ms);
+}
 
-  if (expiry <= now) {
-    RETURN_LONG(0);
+PHP_METHOD(Ngtcp2_Connection, getNextExpiry) {
+  php_quic_connection *connection;
+  zend_bool has_timeout;
+  zend_long timeout_ms;
+  zend_long now_ms;
+
+  ZEND_PARSE_PARAMETERS_NONE();
+
+  connection = Z_QUIC_CONNECTION_P(ZEND_THIS);
+  timeout_ms = php_quic_connection_get_next_timeout_ms(connection, &has_timeout);
+  if (!has_timeout) {
+    RETURN_NULL();
   }
 
-  RETURN_LONG((zend_long)((expiry - now) / NGTCP2_MILLISECONDS));
+  now_ms = php_quic_epoch_milliseconds();
+  RETURN_LONG(now_ms + timeout_ms);
+}
+
+PHP_METHOD(Ngtcp2_Connection, getTimeoutAt) {
+  ZEND_PARSE_PARAMETERS_NONE();
+  ZEND_MN(Ngtcp2_Connection_getNextExpiry)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_METHOD(Ngtcp2_Connection, handleTimers) {
+  ZEND_PARSE_PARAMETERS_NONE();
+  ZEND_MN(Ngtcp2_Connection_onTimeout)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_METHOD(Ngtcp2_Connection, tick) {
+  ZEND_PARSE_PARAMETERS_NONE();
+  ZEND_MN(Ngtcp2_Connection_onTimeout)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
 PHP_METHOD(Ngtcp2_Connection, drainEvents) {
@@ -1210,7 +1293,13 @@ static const zend_function_entry php_quic_connection_methods[] = {
   PHP_ME(Ngtcp2_Connection, __construct, arginfo_connection_construct, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, recv, arginfo_connection_recv, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, onTimeout, arginfo_connection_no_args, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, handleTimers, arginfo_connection_no_args, ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, tick, arginfo_connection_no_args, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, getNextTimeout, arginfo_connection_get_next_timeout,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, getNextExpiry, arginfo_connection_get_next_expiry,
+         ZEND_ACC_PUBLIC)
+  PHP_ME(Ngtcp2_Connection, getTimeoutAt, arginfo_connection_get_next_expiry,
          ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, drainEvents, arginfo_connection_drain_events, ZEND_ACC_PUBLIC)
   PHP_ME(Ngtcp2_Connection, drainOutgoingDatagrams,

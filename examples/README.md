@@ -21,6 +21,9 @@ For a one-shot run that exits after first response payload:
 php examples/client_once.php --host=127.0.0.1 --port=4433 --path=/
 ```
 
+`client_minimal.php` demonstrates event-loop integration with
+`Connection::getNextExpiry()` (absolute UNIX epoch milliseconds).
+
 Optional flags:
 
 - `--docroot=/path/to/root`

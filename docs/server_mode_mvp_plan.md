@@ -8,6 +8,8 @@ on top of the current stable client baseline.
 Enable one accepted QUIC server connection with:
 
 - `recv/drainOutgoingDatagrams/drainEvents/onTimeout/getNextTimeout/close`
+- timeout aliases: `handleTimers/tick`
+- absolute deadline API: `getNextExpiry` (`getTimeoutAt` alias)
 - single bidi stream RX/TX
 - existing event-queue model
 

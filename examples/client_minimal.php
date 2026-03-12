@@ -40,13 +40,20 @@ if ($udp === false) {
 stream_set_blocking($udp, false);
 
 while (!$connection->isClosed()) {
-    $timeout = $connection->getNextTimeout();
+    $timeoutAt = $connection->getNextExpiry(); // UNIX epoch milliseconds
     $read = [$udp];
     $write = null;
     $except = null;
 
-    $sec = $timeout === null ? 1 : intdiv($timeout, 1000);
-    $usec = $timeout === null ? 0 : ($timeout % 1000) * 1000;
+    if ($timeoutAt === null) {
+        $timeout = 1000;
+    } else {
+        $nowMs = (int) floor(microtime(true) * 1000);
+        $timeout = max(0, $timeoutAt - $nowMs);
+    }
+
+    $sec = intdiv($timeout, 1000);
+    $usec = ($timeout % 1000) * 1000;
     $n = stream_select($read, $write, $except, $sec, $usec);
 
     if ($n === false) {

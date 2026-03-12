@@ -53,7 +53,10 @@ Either option should keep these methods symmetric:
 - `drainOutgoingDatagrams(): array`
 - `drainEvents(): array`
 - `getNextTimeout(): ?int`
+- `getNextExpiry(): ?int` (UNIX epoch milliseconds)
+- `getTimeoutAt(): ?int` (alias of `getNextExpiry`)
 - `onTimeout(): void`
+- `handleTimers(): void` / `tick(): void` (aliases)
 - `close(int $errorCode = 0, string $reason = ''): void`
 
 ## Remaining implementation tasks

@@ -54,7 +54,7 @@ php -d extension=$(pwd)/modules/ngtcp2.so examples/client_minimal.php
 ### 4. Run PHPT tests
 
 ```sh
-NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/001_load_extension.phpt tests/010_connection_ctor.phpt tests/020_datagram_recv_flush.phpt tests/030_stream_read_write_end.phpt tests/031_connection_get_stream.phpt tests/040_event_queue.phpt tests/041_event_abstract_base.phpt tests/050_timeout.phpt tests/060_stream_reset.phpt tests/070_close_reason.phpt'
+NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/001_load_extension.phpt tests/010_connection_ctor.phpt tests/020_datagram_recv_flush.phpt tests/030_stream_read_write_end.phpt tests/031_connection_get_stream.phpt tests/040_event_queue.phpt tests/041_event_abstract_base.phpt tests/050_timeout.phpt tests/051_timer_api_aliases.phpt tests/052_timeout_deadline_api.phpt tests/060_stream_reset.phpt tests/070_close_reason.phpt'
 ```
 
 For integration tests and server-focused test groups, see [`tests/README.md`](tests/README.md).
@@ -70,6 +70,18 @@ Core classes:
 - `Varion\\Ngtcp2\\ServerConnection` (experimental)
 - `Varion\\Ngtcp2\\Stream`
 - `Varion\\Ngtcp2\\Event` (abstract base)
+
+Timer APIs on `Connection`/`ServerConnection`:
+
+- `onTimeout(): void` (`handleTimers()` / `tick()` are aliases)
+- `getNextTimeout(): ?int` (relative timeout in milliseconds)
+- `getNextExpiry(): ?int` (absolute UNIX epoch in milliseconds)
+- `getTimeoutAt(): ?int` (alias of `getNextExpiry()`)
+
+Timeout return semantics:
+
+- `null`: no next timer expiry (wait indefinitely)
+- `<= now`: timer handling should run immediately
 
 Event subclasses are under:
 
