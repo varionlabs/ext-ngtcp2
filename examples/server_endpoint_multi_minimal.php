@@ -61,6 +61,8 @@ function nowMilliseconds(): int
 
 function sendDatagram($udp, Datagram $datagram): void
 {
+    // This sample binds one UDP socket, so destination is selected by peer only.
+    // `Datagram::getLocalAddress()` is intentionally unused here.
     $sent = stream_socket_sendto(
         $udp,
         $datagram->getPayload(),
