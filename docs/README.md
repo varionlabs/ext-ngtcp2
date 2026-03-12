@@ -6,6 +6,8 @@
   - Gap analysis against `sample_server.c`
 - `server_mode_mvp_plan.md`
   - File-level checklist for native server mode MVP
+- `server_endpoint_plan.md`
+  - Development plan for high-level `ServerEndpoint` / `ConnectionRegistry`
 
 ## Deferred feature tracks
 
