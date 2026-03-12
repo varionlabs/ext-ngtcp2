@@ -32,7 +32,8 @@ Optional flags:
 - `--key=/path/to/server.key`
 - `--alpn=h3`
 
-If cert/key are missing, the script generates a temporary self-signed certificate via `openssl`.
+If cert/key are missing, the scripts generate a temporary self-signed certificate via `openssl`.
+This certificate bootstrap is convenience code for examples, not part of the extension API contract.
 
 ## Legacy wrapper (gtlsserver)
 

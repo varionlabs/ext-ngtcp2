@@ -20,6 +20,7 @@ TXT);
 
 function ensureCertificate(string $certPath, string $keyPath, string $host): void
 {
+    // Demo helper: certificate bootstrap is not part of the ngtcp2 API surface.
     if (is_file($certPath) && is_file($keyPath)) {
         return;
     }
@@ -64,6 +65,22 @@ function parsePeerAddress(string $peer): Address
 function nowMilliseconds(): int
 {
     return (int) floor(microtime(true) * 1000);
+}
+
+function sendDatagram($udp, Datagram $datagram): void
+{
+    $sent = stream_socket_sendto(
+        $udp,
+        $datagram->getPayload(),
+        0,
+        (string)$datagram->getPeerAddress()
+    );
+    if ($sent === false) {
+        fwrite(
+            STDERR,
+            "send warning: failed to send datagram to " . (string)$datagram->getPeerAddress() . PHP_EOL
+        );
+    }
 }
 
 $options = getopt('', ['host::', 'port::', 'cert::', 'key::', 'alpn::', 'help']);
@@ -135,12 +152,7 @@ $server = ServerConnection::accept(
 );
 
 foreach ($server->drainOutgoingDatagrams() as $outgoing) {
-    stream_socket_sendto(
-        $udp,
-        $outgoing->getPayload(),
-        0,
-        (string)$outgoing->getPeerAddress()
-    );
+    sendDatagram($udp, $outgoing);
 }
 
 $deadline = microtime(true) + 10.0;
@@ -182,12 +194,7 @@ while (microtime(true) < $deadline && !$server->isClosed()) {
 
     try {
         foreach ($server->drainOutgoingDatagrams() as $outgoing) {
-            stream_socket_sendto(
-                $udp,
-                $outgoing->getPayload(),
-                0,
-                (string)$outgoing->getPeerAddress()
-            );
+            sendDatagram($udp, $outgoing);
         }
     } catch (Throwable $e) {
         fwrite(STDERR, "drainOutgoingDatagrams warning: {$e->getMessage()}\n");

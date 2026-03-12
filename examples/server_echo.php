@@ -12,15 +12,16 @@ function usage(): void
 {
     fwrite(STDERR, <<<TXT
 Usage:
-  php examples/server_native_echo.php [--host=127.0.0.1] [--port=4433]
-                                     [--cert=/tmp/ngtcp2/server.crt] [--key=/tmp/ngtcp2/server.key]
-                                     [--alpn=h3] [--prefix='echo: ']
+  php examples/server_echo.php [--host=127.0.0.1] [--port=4433]
+                              [--cert=/tmp/ngtcp2/server.crt] [--key=/tmp/ngtcp2/server.key]
+                              [--alpn=h3] [--prefix='echo: ']
 
 TXT);
 }
 
 function ensureCertificate(string $certPath, string $keyPath, string $host): void
 {
+    // Demo helper: certificate bootstrap is not part of the ngtcp2 API surface.
     if (is_file($certPath) && is_file($keyPath)) {
         return;
     }
@@ -62,6 +63,22 @@ function parsePeerAddress(string $peer): Address
     return new Address(substr($peer, 0, $pos), (int)substr($peer, $pos + 1));
 }
 
+function sendDatagram($udp, Datagram $datagram): void
+{
+    $sent = stream_socket_sendto(
+        $udp,
+        $datagram->getPayload(),
+        0,
+        (string)$datagram->getPeerAddress()
+    );
+    if ($sent === false) {
+        fwrite(
+            STDERR,
+            "send warning: failed to send datagram to " . (string)$datagram->getPeerAddress() . PHP_EOL
+        );
+    }
+}
+
 $options = getopt('', ['host::', 'port::', 'cert::', 'key::', 'alpn::', 'prefix::', 'help']);
 if ($options === false) {
     usage();
@@ -101,16 +118,15 @@ stream_set_blocking($udp, false);
 
 fwrite(STDERR, "native echo server waiting on {$host}:{$port}\n");
 
-$peer = null;
 while (true) {
-    $packet = stream_socket_recvfrom($udp, 65535, 0, $peer);
-    if (is_string($packet) && $packet !== '' && is_string($peer) && $peer !== '') {
+    $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
+    if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
         break;
     }
     usleep(10000);
 }
 
-$remote = parsePeerAddress($peer);
+$remote = parsePeerAddress($from);
 $localName = stream_socket_get_name($udp, false);
 $local = parsePeerAddress($localName === false ? "{$host}:{$port}" : $localName);
 
@@ -124,7 +140,6 @@ $server = ServerConnection::accept(
 while (!$server->isClosed()) {
     $packet = stream_socket_recvfrom($udp, 65535, 0, $from);
     if (is_string($packet) && $packet !== '' && is_string($from) && $from !== '') {
-        $peer = $from;
         try {
             $server->recv(new Datagram($packet, parsePeerAddress($from), $local));
         } catch (Throwable $e) {
@@ -155,14 +170,9 @@ while (!$server->isClosed()) {
         }
     }
 
-    if (!is_string($peer) || $peer === '') {
-        usleep(10000);
-        continue;
-    }
-
     try {
         foreach ($server->drainOutgoingDatagrams() as $outgoing) {
-            stream_socket_sendto($udp, $outgoing->getPayload(), 0, $peer);
+            sendDatagram($udp, $outgoing);
         }
     } catch (Throwable $e) {
         fwrite(STDERR, "drainOutgoingDatagrams warning: {$e->getMessage()}\n");
